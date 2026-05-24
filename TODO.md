@@ -127,14 +127,19 @@ The project lives at `https://github.com/gestrich/SwiftLinuxDemo`.
   (or PUT if it already exists). Needs Pages enabled before `deploy-pages`
   will succeed.
 
-- [ ] **WAIT: `ci.yml` is green on `main`**
-  Loop checkpoint. If still running, sleep 15 min. If failed, read the log,
-  fix, repush.
+- [x] **WAIT: `ci.yml` is green on `main`**
+  *Green on commit `963cb1a` in 3m17s. Build + test + static-stdlib smoke
+  test all pass on ubuntu-latest. The `--version`, `greet`, `hash`,
+  `info` invocations of the statically-linked Linux binary all returned
+  expected output.*
 
-- [ ] **WAIT: `docs.yml` is green on `main`**
-  Loop checkpoint. Pages URL should be reachable at
-  `https://gestrich.github.io/SwiftLinuxDemo/documentation/swiftlinuxdemocore/`
-  (lowercased). If failed, fix and repush.
+- [x] **WAIT: `docs.yml` is green on `main`**
+  *Green on commit `963cb1a` in 2m55s. Pages URL is live and returning
+  HTTP 200:
+  `https://gestrich.github.io/SwiftLinuxDemo/documentation/swiftlinuxdemocore/`.
+  No DocC warnings about missing image assets (a worry from the
+  `.tutorial` → article switch) — Markdown articles render without
+  complaint.*
 
 ## Experiments — empirically prove WHY each guard is needed
 
