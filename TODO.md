@@ -191,8 +191,12 @@ behavior.
 
 ## Release & verify
 
-- [ ] **Tag `v0.1.0` with `scripts/release.sh v0.1.0`**
-  Only after CI is green. Pushes the tag, which fires `release.yml`.
+- [x] **Tag `v0.1.0` with `scripts/release.sh v0.1.0`**
+  *Tagged and pushed. `release.yml` run `26359837225` is in progress.
+  Learnings: `release.sh` correctly refused to run while `.claude/` was
+  untracked (porcelain output) — added it to `.gitignore` first. Good
+  reminder that the clean-tree check catches *anything* git knows about,
+  including untracked dirs.*
 
 - [ ] **WAIT: `release.yml` is green on `v0.1.0`**
   Loop checkpoint. All four jobs (test, build-linux, [attest is a step],
