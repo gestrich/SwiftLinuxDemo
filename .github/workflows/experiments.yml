@@ -174,3 +174,158 @@ jobs:
         with:
           name: exp-strip-canImport-force-Crypto-without-dep
           path: experiments/strip-canImport-force-Crypto-without-dep.log
+
+  # --------------------------------------------------------------------------
+  # Pattern-specific experiments against the platform-EXCLUSIVE targets
+  # (AppKitGreeter on macOS, GlibcGreeter on Linux). These are stronger
+  # demonstrations than the swift-crypto experiments above, because the
+  # targets themselves are un-compileable on the other platform.
+  # --------------------------------------------------------------------------
+
+  strip-if-os-around-platform-targets:
+    name: "EXP-D — declare AppKitGreeter target unconditionally (no #if os in manifest)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install system dependencies
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Mutate Package.swift — declare both targets unconditionally
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("Package.swift")
+          src = p.read_text()
+          replacement = (
+              'let platformExclusiveTargets: [Target] = [\n'
+              '    .target(name: "AppKitGreeter"),\n'
+              '    .target(name: "GlibcGreeter"),\n'
+              ']\n'
+              'let platformExclusiveCoreDeps: [Target.Dependency] = '
+              '["AppKitGreeter", "GlibcGreeter"]'
+          )
+          new = re.sub(
+              r'#if os\(macOS\).*?#endif',
+              replacement,
+              src,
+              count=1,
+              flags=re.DOTALL,
+          )
+          assert new != src, "no substitution made — pattern drift"
+          p.write_text(new)
+          print(new)
+          PY
+      - name: "Build (expect: fails with no such module 'AppKit')"
+        run: |
+          mkdir -p experiments
+          set +e
+          swift build > experiments/exp-d-strip-if-os-around-platform-targets.log 2>&1
+          rc=$?
+          echo "---" >> experiments/exp-d-strip-if-os-around-platform-targets.log
+          echo "exitcode=$rc" >> experiments/exp-d-strip-if-os-around-platform-targets.log
+          cat experiments/exp-d-strip-if-os-around-platform-targets.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exp-d-strip-if-os-around-platform-targets
+          path: experiments/exp-d-strip-if-os-around-platform-targets.log
+
+  forget-if-os-around-dep-edge:
+    name: "EXP-E — keep target guard, forget #if os around the Core dep edge"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install system dependencies
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Mutate Package.swift — gate target, but force Core to depend on AppKitGreeter unconditionally
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("Package.swift")
+          src = p.read_text()
+          # Keep the per-platform target declarations intact; only mutate
+          # the platformExclusiveCoreDeps reference to be unconditional.
+          replacement = (
+              '#if os(macOS)\n'
+              'let platformExclusiveTargets: [Target] = [\n'
+              '    .target(name: "AppKitGreeter"),\n'
+              ']\n'
+              '#elseif os(Linux)\n'
+              'let platformExclusiveTargets: [Target] = [\n'
+              '    .target(name: "GlibcGreeter"),\n'
+              ']\n'
+              '#else\n'
+              'let platformExclusiveTargets: [Target] = []\n'
+              '#endif\n'
+              '\n'
+              '// Pattern E mutation: dep edge is now unconditional even '
+              'though the target it names is platform-gated.\n'
+              'let platformExclusiveCoreDeps: [Target.Dependency] = '
+              '["AppKitGreeter"]'
+          )
+          new = re.sub(
+              r'#if os\(macOS\).*?#endif',
+              replacement,
+              src,
+              count=1,
+              flags=re.DOTALL,
+          )
+          assert new != src, "no substitution made — pattern drift"
+          p.write_text(new)
+          print(new)
+          PY
+      - name: "Build (expect: manifest fails — unknown target 'AppKitGreeter' on Linux)"
+        run: |
+          mkdir -p experiments
+          set +e
+          swift build > experiments/exp-e-forget-if-os-around-dep-edge.log 2>&1
+          rc=$?
+          echo "---" >> experiments/exp-e-forget-if-os-around-dep-edge.log
+          echo "exitcode=$rc" >> experiments/exp-e-forget-if-os-around-dep-edge.log
+          cat experiments/exp-e-forget-if-os-around-dep-edge.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exp-e-forget-if-os-around-dep-edge
+          path: experiments/exp-e-forget-if-os-around-dep-edge.log
+
+  strip-source-level-if-os:
+    name: "EXP-F — strip #if os(...) in source, force unconditional `import AppKitGreeter`"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+      - name: Install system dependencies
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Mutate PlatformReport.swift — force unconditional AppKitGreeter import
+        run: |
+          cat > Sources/SwiftLinuxDemoCore/PlatformReport.swift <<'SWIFT'
+          import AppKitGreeter
+
+          public enum PlatformReport {
+              public static func line() -> String {
+                  return AppKitGreeter().runtimeReport()
+              }
+          }
+          SWIFT
+      - name: "Build (expect: fails with no such module 'AppKitGreeter' on Linux)"
+        run: |
+          mkdir -p experiments
+          set +e
+          swift build > experiments/exp-f-strip-source-level-if-os.log 2>&1
+          rc=$?
+          echo "---" >> experiments/exp-f-strip-source-level-if-os.log
+          echo "exitcode=$rc" >> experiments/exp-f-strip-source-level-if-os.log
+          cat experiments/exp-f-strip-source-level-if-os.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exp-f-strip-source-level-if-os
+          path: experiments/exp-f-strip-source-level-if-os.log
