@@ -16,7 +16,7 @@ The project lives at `https://github.com/gestrich/SwiftLinuxDemo`.
 
 ## Foundation
 
-- [ ] **Scaffold Swift package layout (library + executable + tests)**
+- [x] **Scaffold Swift package layout (library + executable + tests)**
   Rewrite `Package.swift` for `swift-tools-version: 6.2` with:
     - Dependencies: `swift-argument-parser`, `swift-crypto`,
       `swift-docc-plugin` (DocC), `Crypto` only linked on Linux via
@@ -32,7 +32,11 @@ The project lives at `https://github.com/gestrich/SwiftLinuxDemo`.
   reason we install `libcurl4-openssl-dev` on Linux).
   CLI subcommands: `greet`, `hash`, `info`, `fetch`.
 
-- [ ] **Author DocC catalog with tutorial chapters**
+- [x] **Author DocC catalog with tutorial chapters**
+  *Used Markdown articles (not `.tutorial` files) — DocC tutorials require
+  `@Image` placeholders, articles render cleanly without assets and read
+  well as a blog. The Discoveries chapter is a stub; the experiments
+  workflow fills it in with literal compiler errors.*
   Under `Sources/SwiftLinuxDemoCore/Documentation.docc/`:
     - `SwiftLinuxDemoCore.md` — landing page.
     - `Tutorials/Table-of-Contents.tutorial` — `@Tutorials` root.
@@ -51,7 +55,7 @@ The project lives at `https://github.com/gestrich/SwiftLinuxDemo`.
 
 ## Release pipeline
 
-- [ ] **Author `.github/workflows/release.yml` (Linux-only)**
+- [x] **Author `.github/workflows/release.yml` (Linux-only)**
     - `on: push: tags: ['v*']`.
     - Workflow-level `permissions: { attestations: write, contents: write,
       id-token: write }`.
@@ -67,11 +71,11 @@ The project lives at `https://github.com/gestrich/SwiftLinuxDemo`.
       and checksums.
   *No* macOS jobs — the project intentionally demonstrates Linux only.
 
-- [ ] **Author `.github/workflows/ci.yml`**
+- [x] **Author `.github/workflows/ci.yml`**
   Push + PR trigger on `main`. ubuntu-latest, setup-swift 6.2, apt deps,
   `swift build` + `swift test`. Fast feedback before tagging a release.
 
-- [ ] **Author `.github/workflows/docs.yml`**
+- [x] **Author `.github/workflows/docs.yml`**
   Push trigger on `main` (after CI). Build DocC archive with
   `swift package --allow-writing-to-directory ./_site generate-documentation
   --target SwiftLinuxDemoCore --transform-for-static-hosting
@@ -81,33 +85,44 @@ The project lives at `https://github.com/gestrich/SwiftLinuxDemo`.
 
 ## Scripts & docs
 
-- [ ] **Write `scripts/release.sh`**
+- [x] **Write `scripts/release.sh`**
   Mirror the AIDevTools wrapper: refuse non-`v*` versions, refuse dirty
   trees, refuse duplicate tags (local + origin), then `git tag` + `git push
   origin <tag>`, then echo the Actions URL.
 
-- [ ] **Write `scripts/install.sh`**
+- [x] **Write `scripts/install.sh`**
   Linux-x86_64-only platform detection, fetch latest release via the GitHub
   API, download tarball + checksums, verify SHA-256, install to
   `/usr/local/bin` (sudo fallback). Refuse macOS with a friendly note: "this
   demo only ships Linux binaries — clone and `swift build` on macOS."
 
-- [ ] **Write `README.md`**
+- [x] **Write `README.md`**
   One-paragraph intro, install one-liner, `gh attestation verify` one-liner,
   link to the DocC tutorial Pages URL, link to the source guide in
   AIDevTools.
 
 ## Validate locally
 
-- [ ] **Run `swift build` and `swift test` locally on macOS**
-  Fail fast on package or test errors before pushing.
+- [x] **Run `swift build` and `swift test` locally on macOS**
+  *Pass. 8 swift-testing cases in 3 suites. CLI smoke-tested:
+  `swift-linux-demo greet/hash/info` all work locally. Discovered:
+  CryptoKit/SHA256Digest needs macOS 10.15+, URLSession async data needs
+  macOS 12+ — added `platforms: [.macOS(.v13)]` to Package.swift to make
+  these unconditionally available on macOS. No Linux equivalent gate
+  needed.*
 
 ## Push & wire CI/Pages
 
-- [ ] **Commit and push initial scaffolding to `main`**
+- [x] **Commit and push initial scaffolding to `main`**
+  *Pushed 6f4832d. Hit two follow-up YAML parser failures in
+  experiments.yml: (1) unquoted `#if canImport(...)` in `name:` was
+  treated as a YAML comment; (2) unquoted `Build (expect: …)` was treated
+  as a nested mapping. Both fixed by quoting the strings.*
   Single commit, conventional message. Triggers `ci.yml` and `docs.yml`.
 
-- [ ] **Enable GitHub Pages via `gh api`**
+- [x] **Enable GitHub Pages via `gh api`**
+  *Done — `build_type=workflow`. Pages will be live at
+  `https://gestrich.github.io/SwiftLinuxDemo/` once `docs.yml` finishes.*
   `gh api -X POST /repos/gestrich/SwiftLinuxDemo/pages -f build_type=workflow`
   (or PUT if it already exists). Needs Pages enabled before `deploy-pages`
   will succeed.
@@ -129,7 +144,7 @@ the Linux runner, captures the actual compiler error, and writes those error
 strings into the DocC discoveries chapter so the WHY is anchored in observed
 behavior.
 
-- [ ] **Author `.github/workflows/experiments.yml`**
+- [x] **Author `.github/workflows/experiments.yml`**
   `workflow_dispatch`-only workflow. Each job is one experiment:
     1. `strip-when-from-Crypto` — remove `.when(platforms: [.linux])` from
        the swift-crypto dependency. Build on Linux (should pass) AND on
