@@ -59,7 +59,7 @@ jobs:
           p.write_text(new)
           print(new)
           PY
-      - name: Build (expect: succeeds on Linux)
+      - name: "Build (expect: succeeds on Linux)"
         run: |
           mkdir -p experiments
           set +e
@@ -97,7 +97,7 @@ jobs:
               }
           }
           SWIFT
-      - name: Build (expect: fails with "no such module 'CryptoKit'")
+      - name: "Build (expect: fails with no such module 'CryptoKit')"
         run: |
           mkdir -p experiments
           set +e
@@ -150,7 +150,7 @@ jobs:
           p.write_text(new)
           print(new)
           PY
-      - name: Build (expect: fails with "no such module 'Crypto'")
+      - name: "Build (expect: fails with no such module 'Crypto')"
         run: |
           mkdir -p experiments
           set +e
