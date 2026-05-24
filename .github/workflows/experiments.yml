@@ -72,7 +72,7 @@ jobs:
           path: experiments/strip-when-from-Crypto.log
 
   strip-canImport-force-CryptoKit:
-    name: Strip #if canImport(CryptoKit), force `import CryptoKit`
+    name: "Strip canImport(CryptoKit) guard, force `import CryptoKit`"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -110,7 +110,7 @@ jobs:
           path: experiments/strip-canImport-force-CryptoKit.log
 
   strip-canImport-force-Crypto-without-dep:
-    name: Strip #if canImport(CryptoKit), force `import Crypto`, AND remove the Crypto dep
+    name: "Strip canImport guard, force `import Crypto`, remove Crypto dep"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
