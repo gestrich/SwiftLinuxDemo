@@ -38,10 +38,14 @@ Three pieces of foundational tech make this safe:
 
 ## Why a tag?
 
-Tags are immutable names for a single commit. A branch can advance; a tag is
-fixed once pushed. That's exactly the property a release artifact's
-provenance needs — the attestation can confidently claim "this binary was
-built from commit X" because the tag will always resolve to commit X.
+Tags are *conventionally* immutable: a branch is expected to advance, while
+a tag is expected to be fixed once pushed. That convention is what makes a
+tag a useful release trigger — readers and tooling treat `v0.1.0` as a name
+for a single artifact. The attestation closes the loop by pinning the
+underlying commit SHA into the signed statement, so even if someone later
+force-moved `v0.1.0` to a different commit, the original attestation still
+references the original commit. <doc:03-Attestation> goes into how that
+commit pin is used during verification.
 
 The workflow trigger is the literal idiom for "release on tag push":
 

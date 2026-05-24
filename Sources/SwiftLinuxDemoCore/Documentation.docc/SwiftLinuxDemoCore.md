@@ -12,8 +12,16 @@ Build Provenance][source-guide] guide. The same patterns the guide describes
 `.github/workflows/release.yml`, where you can read them in one file instead
 of inferring them across a larger codebase.
 
-Read the chapters below in order. Each one is anchored in a file in *this*
-repository, so you can open the file alongside the chapter and follow along.
+The chapters walk both layers in order: the *mechanics* (what each line of
+YAML does) and the *trust model* underneath them (what supply-chain
+problem provenance and attestation actually solve, and — just as
+importantly — what they don't). The one-line mental model:
+
+> *Attestation proves how a binary was produced; provenance is the
+> overall history that makes that proof meaningful.*
+
+Each chapter is anchored in a file in *this* repository, so you can open
+the file alongside the chapter and follow along.
 
 [source-guide]: https://github.com/gestrich/AIDevTools/blob/main/docs/guides/linux-builds-and-attestations.html
 
