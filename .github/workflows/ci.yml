@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test
+
+      - name: Build release binary (static stdlib)
+        run: swift build -c release --product swift-linux-demo --static-swift-stdlib
+
+      - name: Smoke test the binary
+        run: |
+          .build/release/swift-linux-demo --version
+          .build/release/swift-linux-demo greet --name CI
+          .build/release/swift-linux-demo hash "abc"
+          .build/release/swift-linux-demo info
