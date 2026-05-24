@@ -9,8 +9,10 @@ the guide describes (`--static-swift-stdlib`,
 `actions/attest-build-provenance@v2`, `gh attestation verify`, OIDC trust
 roots) lives here in one small repo you can read end to end.
 
-Read the full walkthrough on the [DocC site][docs] (link goes live after the
-first `Docs` workflow run on `main`).
+Read the full walkthrough on the **[DocC site][docs]** — five chapters
+covering the pipeline, building on Linux, attestation, DocC-on-Pages, and
+a Discoveries chapter that quotes the literal Linux compiler errors each
+guard in `Package.swift` prevents.
 
 [source-guide]: https://github.com/gestrich/AIDevTools/blob/main/docs/guides/linux-builds-and-attestations.html
 [docs]: https://gestrich.github.io/SwiftLinuxDemo/documentation/swiftlinuxdemocore/

@@ -198,24 +198,56 @@ behavior.
   reminder that the clean-tree check catches *anything* git knows about,
   including untracked dirs.*
 
-- [ ] **WAIT: `release.yml` is green on `v0.1.0`**
-  Loop checkpoint. All four jobs (test, build-linux, [attest is a step],
-  release) must succeed. Verify the GitHub Release page has the tarball and
-  `checksums.txt` attached.
+- [x] **WAIT: `release.yml` is green on `v0.1.0`**
+  *Green in 5m02s on run `26359837225`. Jobs: Test 2m18s · Build Linux
+  2m24s · Create Release 10s. Release `v0.1.0` published with both
+  `swift-linux-demo-linux-x86_64.tar.gz` (29MB) and `checksums.txt`
+  attached. **Heads-up:** the run flagged Node.js 20 deprecation for
+  `actions/checkout@v4`, `actions/upload-artifact@v4`,
+  `actions/download-artifact@v4`, `actions/attest-build-provenance@v2`,
+  and `swift-actions/setup-swift@v2`. Default flip is 2026-06-02 (very
+  soon); a follow-up commit bumping to v5 where available would be
+  worthwhile.*
 
-- [ ] **End-to-end verify: `gh attestation verify` succeeds**
-  Download `swift-linux-demo-linux-x86_64.tar.gz` from the v0.1.0 release
-  and run `gh attestation verify <file> --repo gestrich/SwiftLinuxDemo`.
-  Confirm the workflow path and commit SHA shown in the output match what
-  we pushed.
+- [x] **End-to-end verify: `gh attestation verify` succeeds**
+  *Verified. `gh attestation verify` exits 0; JSON form confirms the
+  attestation's subject digest matches the locally-computed sha256
+  (`16f03ed0…b431`), the workflow is
+  `.github/workflows/release.yml`, the ref is `refs/tags/v0.1.0`, and
+  the commit is `18d75575c2520d44cc4432a032f8fc5ed802c2c6`. The
+  Sigstore cert is anchored at Fulcio's `sigstore-intermediate` and
+  the Rekor inclusion proof is present (log index `1622210124`). The
+  text mode of `gh attestation verify` prints nothing on success —
+  use `--format json` if you want to see the proof.*
 
-- [ ] **Update README with the live Pages URL**
-  Once Pages confirms the site is up, point the README at the tutorial root
-  and commit the change.
+- [x] **Update README with the live Pages URL**
+  *README already pointed at the live URL
+  (`https://gestrich.github.io/SwiftLinuxDemo/documentation/swiftlinuxdemocore/`).
+  Tightened the surrounding copy now that Pages confirmed HTTP 200 and
+  all five chapters render.*
 
 ---
 
 ## Learnings
 
-(Appended as discoveries are made — each entry is anchored to the task that
-produced it.)
+Cross-cutting notes that don't belong on a single task:
+
+- **`gh attestation verify` is silent on success.** Default text mode
+  prints nothing; you only see output on failure. Use `--format json` to
+  see the SLSA provenance statement and confirm the workflow path / commit
+  SHA you expected.
+- **swift build splits its output across stdout and stderr.** Package
+  resolution lines go to stderr; compiler diagnostics go to stdout.
+  Capturing only one stream misses half the picture. Use `> log 2>&1` when
+  scripting around it.
+- **A clean working tree means *everything* — including untracked
+  directories.** `git status --porcelain` lists untracked files too, so
+  `release.sh`'s clean-tree check refused to run when `.claude/` was
+  present. Fix by adding session-artifact dirs to `.gitignore`.
+- **YAML hash and colon traps in workflow files.** `name: foo #bar` treats
+  `#bar` as a comment; `name: Build (expect: X)` treats `expect:` as a
+  nested mapping. Quote any name that contains `#` or `:`.
+- **Node.js 20 actions deprecate on 2026-06-02.** Every workflow in this
+  repo currently uses one or more Node 20 actions. Bumping to v5 of the
+  GitHub-published actions (and tracking swift-actions/setup-swift for a
+  v3) is a follow-up that should happen before that flip.
