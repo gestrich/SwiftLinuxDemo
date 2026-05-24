@@ -97,5 +97,10 @@ else
 fi
 
 echo
-echo "To cryptographically verify the binary came from this exact workflow run:"
+echo "To cryptographically verify what you just installed:"
+echo
+echo "  # Confirm the tarball matches the official immutable release for ${VERSION}:"
+echo "  gh release verify-asset ${VERSION} ${TARBALL} --repo ${REPO}"
+echo
+echo "  # Confirm the tarball was built by this repo's release workflow:"
 echo "  gh attestation verify ${TARBALL} --repo ${REPO}"

@@ -30,14 +30,29 @@ and extract the binary.
 
 ## Cryptographically verify the binary
 
+Two verification paths cover two different trust questions. Run both for
+the strongest guarantee:
+
 ```bash
+# (1) Was this file in the official immutable release for this tag?
+gh release verify-asset v0.2.0 swift-linux-demo-linux-x86_64.tar.gz \
+  --repo gestrich/SwiftLinuxDemo
+
+# (2) Was this file built by this repo's release workflow?
 gh attestation verify swift-linux-demo-linux-x86_64.tar.gz \
   --repo gestrich/SwiftLinuxDemo
 ```
 
-This proves the tarball came from a specific workflow run in this repo,
-built from a specific commit, with the run permanently recorded in the
-Sigstore Rekor transparency log. A checksum can't give you that.
+The first command asks GitHub *"is this byte sequence one of the named
+assets in the immutable release for v0.2.0?"* — signed by GitHub itself.
+The second asks Sigstore *"was this byte sequence built by the workflow
+file in this repo, on this commit?"* — signed during the build.
+
+The DocC chapter [Releases anyone can verify][docs-verify] explains the
+two-attestation model in depth, including what each one *doesn't* prove
+and when to reach for which.
+
+[docs-verify]: https://gestrich.github.io/SwiftLinuxDemo/documentation/swiftlinuxdemocore/03-attestation/
 
 ## Use it
 

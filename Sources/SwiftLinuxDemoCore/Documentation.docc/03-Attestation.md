@@ -131,7 +131,41 @@ The motivation is to *reduce centralized trust.* Even if a single
 party in the chain were compromised, the public, externally-mirrored
 log entries make silent retroactive forgery very hard.
 
-## The step that ties it all together
+## Two attestations, two questions
+
+A release published by this repo carries **two independent
+attestations** — they're built on the same cryptographic substrate
+(Sigstore, in-toto envelopes, transparency log) but they answer
+different questions and are signed by different parties.
+
+| | Build-provenance attestation | Release-integrity attestation |
+|---|---|---|
+| Answers | *"Was this byte sequence built by the claimed workflow run?"* | *"Is this the official immutable release for this tag, and is this file one of its named assets?"* |
+| Emitted by | `actions/attest-build-provenance@v2`, during the build job | GitHub itself, when an immutable release is published |
+| Signed using | Public [Sigstore][sigstore] (Fulcio CA at `sigstore.dev`) | GitHub's own Fulcio instance (`O=GitHub, Inc.`) |
+| Signer identity (SAN) | `…/.github/workflows/release.yml@refs/tags/vX.Y.Z` | `https://dotcom.releases.github.com` |
+| Predicate type | `https://slsa.dev/provenance/v1` | `https://in-toto.io/attestation/release/v0.2` |
+| Subject | the file + its SHA-256 | the tag PURL + each named asset's SHA-256 |
+| Verified with | `gh attestation verify <file> --repo <owner/repo>` | `gh release verify <tag>` / `gh release verify-asset <tag> <file>` |
+| Available since | August 2023 (GA) | October 2025 (GA) |
+
+The two layers are *complementary*, not redundant. The
+build-provenance attestation lets a user trace bytes back to a
+specific workflow run and commit — strong supply-chain story, weak
+UX (you have to know to verify before installing, and you have to
+have downloaded the right file from the right place). The
+release-integrity attestation closes the UX gap: as a *consumer*,
+you ask GitHub one question — *"is this the official immutable
+release for v1.2.0?"* — and GitHub answers with a signed receipt.
+
+The next two sections walk through each path. <doc:03-Attestation#End-user-verification>
+ties them together with the two commands you'd run as a downstream
+user.
+
+## Path A — the build-provenance attestation
+
+With the vocabulary in hand, the actual workflow step is surprisingly
+small:
 
 With the vocabulary in hand, the actual workflow step is surprisingly
 small:
@@ -215,6 +249,133 @@ GitHub's OIDC issuer is the trust anchor.
 Operationally this is huge: there is no key to rotate, no HSM to
 fund, no secret to lose.
 
+## Path B — the release-integrity attestation
+
+GitHub generates a *second* attestation whenever an
+[immutable release][immutable-docs] is published. There's no workflow
+step to write for this one — the only setup is a per-repository
+toggle.
+
+[immutable-docs]: https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases
+
+### Enabling immutable releases
+
+Either through the UI (`Settings → General → Releases → Enable
+release immutability`) or in one shot via the REST API:
+
+```bash
+gh api -X PUT /repos/<owner>/<repo>/immutable-releases
+# → {"enabled":true,"enforced_by_owner":false}
+```
+
+State can be read back with the same endpoint and a plain `GET`. The
+toggle applies only to releases created *after* it's flipped — older
+releases stay mutable and have no release-integrity attestation. (For
+this repo, `v0.1.0` predates the toggle and only carries a build-
+provenance attestation; `v0.2.0` onward have both.)
+
+Once immutability is on, every release that gets published triggers
+GitHub to:
+
+- lock the release metadata, the asset list, and the underlying Git
+  tag against further changes,
+- compute a release-integrity attestation whose subject is the tag's
+  [purl][purl] plus each asset name+sha256, and
+- sign that attestation with GitHub's own Fulcio CA, with a SAN of
+  `https://dotcom.releases.github.com`.
+
+You can confirm a given release is immutable via the API:
+
+```bash
+gh release view <tag> --repo <owner>/<repo> --json isImmutable
+# → {"isImmutable":true}
+```
+
+[purl]: https://github.com/package-url/purl-spec
+
+### Verifying with `gh release verify` and `verify-asset`
+
+These two commands are the consumer-facing half of the
+release-integrity story. Both ship with [GitHub CLI][gh-cli] (the
+`gh release verify` subcommand was added in the same release wave as
+the public preview of immutable releases in mid-2025; `gh 2.92+`
+includes them).
+
+[gh-cli]: https://cli.github.com/
+
+**`gh release verify <tag>`** asks "does an immutable-release
+attestation exist for this tag, and is it valid?" It does *not*
+verify any local file:
+
+```
+$ gh release verify v0.2.0 --repo gestrich/SwiftLinuxDemo
+Resolved tag v0.2.0 to sha1:55d3a0b853630a9c2275ca5d0113ec54199bfb05
+Loaded attestation from GitHub API
+✓ Release v0.2.0 verified!
+
+Assets
+checksums.txt                          sha256:abc01f969382a2eddb…
+swift-linux-demo-linux-x86_64.tar.gz   sha256:98b80df0bdb244aa…
+```
+
+The output prints the set of subject digests the attestation covers
+— that's effectively GitHub's signed answer to *"what bytes
+constitute this release."*
+
+**`gh release verify-asset <tag> <file>`** is the everyday command.
+It SHA-256s your local file, then asks GitHub whether that hash is in
+the release-integrity attestation for the named tag:
+
+```
+$ gh release verify-asset v0.2.0 ./swift-linux-demo-linux-x86_64.tar.gz \
+    --repo gestrich/SwiftLinuxDemo
+Calculated digest for swift-linux-demo-linux-x86_64.tar.gz: sha256:98b80df0bdb244aa…
+Resolved tag v0.2.0 to sha1:55d3a0b…
+Loaded attestation from GitHub API
+
+✓ Verification succeeded! swift-linux-demo-linux-x86_64.tar.gz is present in release v0.2.0
+```
+
+And the tamper case is exactly what you'd hope for:
+
+```
+$ gh release verify-asset v0.2.0 ./poisoned.tar.gz --repo gestrich/SwiftLinuxDemo
+attestation for v0.2.0 does not contain subject sha256:97f2b5cb…
+$ echo $?
+1
+```
+
+— a clear refusal, an explicit hash mismatch, and a non-zero exit code.
+
+### How the release attestation differs from build provenance
+
+The two attestations look superficially similar (both are in-toto
+statements signed via Sigstore), but their *trust roots* and
+*claims* differ in ways that matter for what each one actually
+proves:
+
+- **Different CA.** Build provenance uses public Sigstore (Fulcio at
+  `sigstore.dev`). Release integrity uses GitHub's *own* Fulcio
+  instance (`O=GitHub, Inc.`). The release-integrity flow's trust
+  root is therefore GitHub itself — not a third-party CA. That's a
+  weaker decentralization story but a simpler operational one.
+- **Different signer identity.** Build provenance's signing
+  certificate names the workflow file
+  (`.../.github/workflows/release.yml@refs/tags/v0.2.0`). Release
+  integrity's certificate names GitHub
+  (`https://dotcom.releases.github.com`). A consumer checking the
+  release-integrity attestation has no opinion about *which workflow
+  built the bytes* — they're trusting GitHub's assertion about
+  *"what's in this release"*.
+- **Different predicate.** Build provenance uses
+  [SLSA Provenance v1][slsa-v1]; release integrity uses
+  `https://in-toto.io/attestation/release/v0.2`. The release
+  predicate's `subject[]` includes the tag's package-URL plus each
+  asset by name + sha256 — exactly the shape that makes
+  `verify-asset` cheap to implement.
+
+[slsa-v1]: https://slsa.dev/spec/v1.0/
+
 ## What attestation does NOT solve
 
 This is the section most introductions skip, and it's the most
@@ -268,11 +429,13 @@ Rekor inclusion proof rather than at a tarball on someone's blog.
 
 ## Why commit pinning matters
 
-Tags are mutable. A maintainer (or an attacker with push access) can
-delete `v1.2.0` and re-push it pointing at a different commit. The
-attestation for the *original* `v1.2.0` build still exists and is
-still valid for the original binary — but a verifier who only checks
-*"came from this repo"* won't notice the swap.
+Tags are conventionally immutable but not *technically* immutable
+unless you've enabled the immutable-releases setting described above.
+Without it, a maintainer (or an attacker with push access) can delete
+`v1.2.0` and re-push it pointing at a different commit. The build-
+provenance attestation for the *original* `v1.2.0` build still
+exists and is still valid for the original binary — but a verifier
+who only checks *"came from this repo"* won't notice the swap.
 
 `gh attestation verify --repo <owner>/<repo>` is the easy path; it
 passes as long as *any* attestation in the repo matches the binary's
@@ -283,7 +446,8 @@ hash. For stronger guarantees, also pin:
   same repo can't satisfy verification).
 
 Inspect the verified statement (e.g., with `--format json`) and check
-those fields yourself if your policy requires them:
+those fields yourself if your policy requires them, or use the
+`--signer-workflow` flag to pin the workflow file inline:
 
 ```bash
 gh attestation verify swift-linux-demo-linux-x86_64.tar.gz \
@@ -291,34 +455,81 @@ gh attestation verify swift-linux-demo-linux-x86_64.tar.gz \
   --signer-workflow <owner>/<repo>/.github/workflows/release.yml
 ```
 
+The release-integrity path (Path B above) sidesteps the tag-mutability
+problem entirely: enabling immutable releases makes the tag itself
+un-rewritable, and `gh release verify-asset` ties the bytes you have
+to the *immutable* tag, not just "any tag in this repo." If you only
+need one of the two pins, the release path is the lower-friction
+choice. If you also need to assert *which workflow built the bytes*,
+keep the build-provenance verify alongside it.
+
 Verification is only as strong as the policy you actually enforce on
 the statement's claims.
 
-## End-user verification
+## End-user verification — which command, when
+
+Once you understand the two attestation paths, the practical question
+for a downstream user is *which verify command do I run?* The honest
+answer is *"probably both, in a script,"* because they answer
+different questions.
+
+### The two-command verify
 
 ```bash
-gh attestation verify swift-linux-demo-linux-x86_64.tar.gz \
-  --repo <owner>/<repo>
+# (1) Did this file come from the official immutable release for this tag?
+gh release verify-asset <tag> <file> --repo <owner>/<repo>
+
+# (2) Was the file built by the workflow definition we expect?
+gh attestation verify <file> --repo <owner>/<repo>
 ```
 
-Under the hood, that command:
+`verify-asset` is the consumer-friendly check. It's the one to put
+in a `curl … | sh`-style installer or a `README` quickstart. It
+proves:
 
-1. Computes the SHA-256 of your local file.
-2. Fetches the attestation bundle from GitHub for that digest.
-3. Validates the Sigstore certificate chain back to Fulcio's root.
-4. Confirms the Rekor transparency-log inclusion proof.
-5. Checks that the certificate's identity claims match the repo you
-   passed.
-6. (Silently) returns 0 on success.
+- there is an immutable release in this repo with this tag,
+- the bytes on disk are byte-for-byte one of that release's named
+  assets,
+- the release-integrity attestation backing those claims is signed by
+  GitHub and recorded in a transparency log.
 
-`gh attestation verify` prints nothing on success by design — only
-failures get loud. To see the signed statement (and confirm the
-commit SHA, workflow file, and run ID it asserts), add
-`--format json` and inspect `verificationResult.statement` and
-`signature.certificate`. The [`gh attestation` reference][gh-attest]
-documents every option.
+`gh attestation verify` is the supply-chain check. It's the one to
+add when you care about *which workflow built the bytes*, not just
+that they were officially released. It proves:
+
+- there is a build-provenance attestation in this repo whose subject
+  digest matches the bytes on disk,
+- that attestation was signed by Sigstore in response to a real
+  GitHub Actions run,
+- the workflow file, commit SHA, and run ID are recorded in the
+  signed statement (use `--format json` to inspect them).
+
+For maximum strictness, also pass `--signer-workflow` to pin which
+workflow file is allowed to produce attestations (otherwise *any*
+workflow in the repo qualifies):
+
+```bash
+gh attestation verify <file> --repo <owner>/<repo> \
+  --signer-workflow <owner>/<repo>/.github/workflows/release.yml
+```
+
+### A note on silent success
+
+`gh attestation verify` prints nothing on success by default — only
+failures get loud. Add `--format json` to see the signed statement
+and confirm the commit SHA, workflow file, and run ID it asserts.
+
+`gh release verify` and `gh release verify-asset` are noisier on
+success — both print a `✓` line, the resolved tag, and (for
+`verify`) the asset digests they cover. Either way, the exit code is
+the authoritative signal in scripts.
+
+The full reference for both is in the
+[`gh attestation`][gh-attest] and [`gh release`][gh-release] CLI
+manuals.
 
 [gh-attest]: https://cli.github.com/manual/gh_attestation
+[gh-release]: https://cli.github.com/manual/gh_release
 
 ## See Also
 
