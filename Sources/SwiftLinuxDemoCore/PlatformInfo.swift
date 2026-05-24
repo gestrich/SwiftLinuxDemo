@@ -21,9 +21,10 @@ public struct PlatformInfo: Sendable, Equatable {
 
     public func renderedReport() -> String {
         """
-        os:    \(os)
-        arch:  \(arch)
-        swift: \(swiftCompilerVersion)
+        os:     \(os)
+        arch:   \(arch)
+        swift:  \(swiftCompilerVersion)
+        native: \(PlatformReport.line())
         """
     }
 
