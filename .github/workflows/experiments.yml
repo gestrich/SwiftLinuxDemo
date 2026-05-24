@@ -2,16 +2,20 @@ name: Experiments
 
 # Manually-triggered workflow that intentionally breaks the build to capture
 # the exact compiler error each guard in Package.swift / source code
-# prevents on Linux. The captured stderr is the deliverable — each job
-# uploads `experiments/<name>.log` as an artifact so the Discoveries
+# prevents on Linux. The captured stderr+stdout is the deliverable — each
+# job uploads `experiments/<name>.log` as an artifact so the Discoveries
 # tutorial chapter can quote literal error output instead of paraphrasing.
+#
+# Why `2>&1`: `swift build` emits package-resolution lines on stderr but
+# compiler diagnostics on stdout, so capturing only one stream misses the
+# error we care about. Combine them.
 
 on:
   workflow_dispatch:
 
 jobs:
   baseline:
-    name: Baseline (no mutations) — should succeed
+    name: "Baseline — should succeed"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -22,19 +26,20 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
       - name: Build
-        id: build
         run: |
           mkdir -p experiments
           set +e
-          swift build 2> experiments/baseline.log
+          swift build > experiments/baseline.log 2>&1
+          echo "---" >> experiments/baseline.log
           echo "exitcode=$?" >> experiments/baseline.log
+          cat experiments/baseline.log
       - uses: actions/upload-artifact@v4
         with:
           name: exp-baseline
           path: experiments/baseline.log
 
   strip-when-from-Crypto:
-    name: Strip .when(platforms:) from swift-crypto product
+    name: "Strip .when(platforms:) from swift-crypto"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -63,7 +68,8 @@ jobs:
         run: |
           mkdir -p experiments
           set +e
-          swift build 2> experiments/strip-when-from-Crypto.log
+          swift build > experiments/strip-when-from-Crypto.log 2>&1
+          echo "---" >> experiments/strip-when-from-Crypto.log
           echo "exitcode=$?" >> experiments/strip-when-from-Crypto.log
           cat experiments/strip-when-from-Crypto.log
       - uses: actions/upload-artifact@v4
@@ -72,7 +78,7 @@ jobs:
           path: experiments/strip-when-from-Crypto.log
 
   strip-canImport-force-CryptoKit:
-    name: "Strip canImport(CryptoKit) guard, force `import CryptoKit`"
+    name: "Strip canImport guard, force `import CryptoKit`"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -101,7 +107,8 @@ jobs:
         run: |
           mkdir -p experiments
           set +e
-          swift build 2> experiments/strip-canImport-force-CryptoKit.log
+          swift build > experiments/strip-canImport-force-CryptoKit.log 2>&1
+          echo "---" >> experiments/strip-canImport-force-CryptoKit.log
           echo "exitcode=$?" >> experiments/strip-canImport-force-CryptoKit.log
           cat experiments/strip-canImport-force-CryptoKit.log
       - uses: actions/upload-artifact@v4
@@ -135,16 +142,21 @@ jobs:
               }
           }
           SWIFT
-      - name: Remove Crypto product dep from SwiftLinuxDemoCore target
+      - name: Remove Crypto from SwiftLinuxDemoCore target dependencies
         run: |
           python3 - <<'PY'
           import re, pathlib
           p = pathlib.Path("Package.swift")
           src = p.read_text()
+          # Replace the entire SwiftLinuxDemoCore target's dependencies array
+          # with an empty list so the manifest stays syntactically valid.
+          # DOTALL so the `.` in `[^\]]*` doesn't trip on newlines (it won't
+          # here, but be explicit).
           new = re.sub(
-              r',?\s*\.product\(name:\s*"Crypto",\s*package:\s*"swift-crypto",\s*condition:\s*\.when\(platforms:\s*\[\.linux\]\)\)',
-              '',
+              r'(\.target\(\s*name:\s*"SwiftLinuxDemoCore",\s*dependencies:\s*)\[(?:[^\[\]]|\[[^\]]*\])*\]',
+              r'\1[]',
               src,
+              flags=re.DOTALL,
           )
           assert new != src, "no substitution made — pattern drift"
           p.write_text(new)
@@ -154,7 +166,8 @@ jobs:
         run: |
           mkdir -p experiments
           set +e
-          swift build 2> experiments/strip-canImport-force-Crypto-without-dep.log
+          swift build > experiments/strip-canImport-force-Crypto-without-dep.log 2>&1
+          echo "---" >> experiments/strip-canImport-force-Crypto-without-dep.log
           echo "exitcode=$?" >> experiments/strip-canImport-force-Crypto-without-dep.log
           cat experiments/strip-canImport-force-Crypto-without-dep.log
       - uses: actions/upload-artifact@v4
