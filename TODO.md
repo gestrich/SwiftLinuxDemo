@@ -168,12 +168,23 @@ behavior.
   `experiments/<name>.log`, uploads as artifact. The "failure" output
   *is* the desired result.
 
-- [ ] **Trigger experiments + download captured stderr**
-  `gh workflow run experiments.yml`, wait for completion,
-  `gh run download <id> --dir experiments/`. Inspect each `.log` for the
-  diagnostic line.
+- [x] **Trigger experiments + download captured stderr**
+  *First run captured only stderr — Swift's actual compile diagnostics
+  print to stdout. Re-ran with `2>&1`. Also fixed a regex that stripped
+  the only entry from the dependencies array but left a trailing comma
+  (`[,]`), producing "expected expression in container literal" instead
+  of the "no such module" we wanted. Re-ran cleanly on run
+  `26359495532`.*
 
-- [ ] **Rewrite `05-Discoveries.tutorial` with the literal error text**
+- [x] **Rewrite `05-Discoveries.md` with the literal error text**
+  *Done. Findings (literal quotes from the runner):*
+  - *strip `.when(platforms: [.linux])`: build **succeeds** on Linux —
+    `.when` is a macOS-side optimization, not a Linux correctness gate.*
+  - *force `import CryptoKit` on Linux: `error: no such module 'CryptoKit'`
+    at `Hasher.swift:2:8`.*
+  - *force `import Crypto` with the dep removed from the target:
+    `error: no such module 'Crypto'` plus the helpful warning
+    `'swiftlinuxdemo': dependency 'swift-crypto' is not used by any target`.*
   Each guard gets its own step: a one-paragraph WHY, then a code fence
   showing the exact error the runner produced when the guard was removed.
   Cite the experiment job name so a curious reader can re-run it.
