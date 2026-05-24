@@ -84,22 +84,56 @@ Two reasons to pin:
     swift-version: '6.2'
 ```
 
-## Cross-platform crypto
+## Three conditional patterns, three different jobs
 
-`Hasher.swift` uses SHA-256. On macOS that lives in CryptoKit; on Linux
-CryptoKit doesn't exist, so the swift-crypto package provides a drop-in
-`Crypto` module with the same API.
+Cross-platform Swift packages usually need three different
+"this-only-applies-on-platform-X" knobs, each guarding against a
+different failure mode. This repo demonstrates all three:
 
-The package manifest links swift-crypto only on Linux:
+**1. `.when(platforms: [.linux])` on a dep edge** — used when the
+dependency itself compiles everywhere, but you only want it *linked* on
+some platforms. swift-crypto is the canonical case:
 
 ```swift
 .product(name: "Crypto", package: "swift-crypto",
          condition: .when(platforms: [.linux]))
 ```
 
-And the source picks the right module at compile time:
+**2. `#if os(...)` around a `.target(name:)` declaration** — used when
+the target's source files themselves can't compile on the other
+platform (because they `import` a framework that doesn't exist there).
+This repo has two such targets: `AppKitGreeter` (imports AppKit,
+macOS-only) and `GlibcGreeter` (imports Glibc, Linux-only):
 
 ```swift
+#if os(macOS)
+let platformExclusiveTargets: [Target] = [.target(name: "AppKitGreeter")]
+let platformExclusiveCoreDeps: [Target.Dependency] = ["AppKitGreeter"]
+#elseif os(Linux)
+let platformExclusiveTargets: [Target] = [.target(name: "GlibcGreeter")]
+let platformExclusiveCoreDeps: [Target.Dependency] = ["GlibcGreeter"]
+#endif
+```
+
+The dependency *references* (`platformExclusiveCoreDeps`) live inside
+the same `#if` block — that's load-bearing. Referencing a manifest-
+gated target's name from an un-gated context fails manifest
+evaluation. See <doc:05-Discoveries> for the literal error.
+
+**3. `#if os(...)` or `#if canImport(...)` inside source** — used when
+one source file picks between platform-specific implementations:
+
+```swift
+// Sources/SwiftLinuxDemoCore/PlatformReport.swift
+#if os(macOS)
+import AppKitGreeter
+#elseif os(Linux)
+import GlibcGreeter
+#endif
+```
+
+```swift
+// Sources/SwiftLinuxDemoCore/Hasher.swift
 #if canImport(CryptoKit)
 import CryptoKit
 #else
@@ -107,10 +141,14 @@ import Crypto
 #endif
 ```
 
-Why two layers? Because they solve different problems — the manifest
-condition controls which dependency edges are *linked*, and the source
-guard controls which import statement is *compiled*. <doc:05-Discoveries>
-shows what each error looks like when you strip the guards.
+`#if os(X)` is a hard assertion about the host OS. `#if canImport(X)`
+asks the softer question "is this module available right now?" which
+auto-adapts if the named module ever ships on a new platform. Prefer
+`canImport` when the module is the thing you care about.
+
+The three patterns *compose* — they don't substitute for each other.
+<doc:05-Discoveries> empirically demonstrates the distinct failure mode
+each one prevents on the Linux runner.
 
 ## See Also
 
