@@ -1,10 +1,31 @@
-# Discoveries — what each guard actually prevents
+# Cross-platform Swift packages: which guard does what
 
-Three different conditional patterns coexist in this repo's `Package.swift`
-and source code. They look redundant on first read. The experiments in
-this chapter remove each one in isolation on the Linux runner and capture
-the literal compiler error, so the *why* is anchored in observed behavior
-instead of theory.
+## Why this chapter exists
+
+Cross-platform Swift packages quickly accumulate conditional code:
+[`#if os(macOS)`][lang-conditional] blocks inside `Package.swift`,
+[`.when(platforms:)`][when-platforms] conditions on dependency edges,
+[`#if canImport(...)`][lang-canimport] guards inside source files.
+Apple's documentation describes each one in isolation, but the
+question that actually matters when you're staring at an unfamiliar
+error message is: *which guard would have prevented this?*
+
+This chapter answers that empirically. For each of the three patterns
+this repo uses, we strip the guard on a Linux runner and capture the
+literal compiler diagnostic. The *"what does this guard actually
+prevent"* answer is then exactly the error you see when it isn't
+there.
+
+Read this chapter once you've built a few cross-platform packages and
+want to understand *which knob to reach for when* — not the first
+time you're learning that conditional Swift code exists at all. The
+section <doc:02-Building-On-Linux#Three-conditional-patterns-three-different-jobs>
+in the previous chapter is the shorter introduction; this chapter is
+the empirical follow-up.
+
+[lang-conditional]: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/statements/#Conditional-Compilation-Block
+[lang-canimport]: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/statements/#Conditional-Compilation-Block
+[when-platforms]: https://docs.swift.org/swiftpm/documentation/packagedescription/targetdependencycondition/
 
 ## Method
 

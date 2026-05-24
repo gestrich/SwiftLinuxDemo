@@ -1,12 +1,40 @@
-# Shipping DocC on GitHub Pages
+# Publishing documentation with DocC and GitHub Pages
 
-The site you're reading right now is built and deployed by a workflow in the
-same repo it documents. Here is how that loop closes.
+## Why this chapter
 
-## The workflow
+The site you're reading right now exists because Swift's
+documentation toolchain — [DocC][docc] — and GitHub's static hosting
+product — [GitHub Pages][pages] — fit together cleanly with a small
+workflow file in this repo. The chapter walks through that workflow,
+the three flags on the build command that make the output suitable
+for a static host, and the one extra permission scope the deploy step
+needs.
 
-`.github/workflows/docs.yml` runs on every push to `main`. The build step is
-one command:
+If you've shipped a Swift library before but always sent users to a
+README on GitHub, this is the upgrade path: real rendered
+documentation, with full-text symbol pages, hosted on a free URL,
+rebuilt on every push.
+
+[docc]: https://www.swift.org/documentation/docc/
+[pages]: https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages
+
+## What DocC produces
+
+DocC is Apple's documentation compiler. Pointed at a Swift target, it
+extracts the public API surface, renders any Markdown articles
+authored alongside the source (the `Documentation.docc` folder), and
+produces a single browsable archive — either a `.doccarchive` bundle
+for use inside Xcode, or a tree of static HTML when given the right
+flags.
+
+The static-HTML mode is what we want. Every page is a regular file on
+disk, and any plain HTTP server can serve them; no Apple-specific
+"DocC server" is required.
+
+## The build step
+
+`.github/workflows/docs.yml` runs on every push to `main`. The build
+step is one command:
 
 ```bash
 swift package \
@@ -18,20 +46,29 @@ swift package \
   --output-path ./_site
 ```
 
-Three flags worth unpacking:
+The three DocC-specific flags each do one job:
 
-- `--target SwiftLinuxDemoCore` — which target's docs to build. The CLI
-  target (`SwiftLinuxDemo`) is intentionally thin and has no DocC catalog;
-  all the prose lives in the library, which is also where the public API
-  surface lives.
-- `--transform-for-static-hosting` — rewrites the generated HTML to use
-  relative paths and an `index.html` at each route, so it runs under any
-  static host (no Apple "DocC server" needed).
-- `--hosting-base-path SwiftLinuxDemo` — the repo name. GitHub Pages serves
-  this site at `https://<owner>.github.io/<repo>/`, so every internal link
-  needs `/SwiftLinuxDemo/` as a prefix.
+- `--target SwiftLinuxDemoCore` — which target's docs to build. The
+  CLI target (`SwiftLinuxDemo`) is intentionally thin and has no DocC
+  catalog of its own; all the prose lives in the library, where the
+  public API surface also lives.
+- `--transform-for-static-hosting` — rewrites the generated HTML to
+  use relative paths and an `index.html` at each route, so any static
+  host (not just Apple's tooling) can serve it.
+- `--hosting-base-path SwiftLinuxDemo` — the repository name. GitHub
+  Pages serves project sites at `https://<owner>.github.io/<repo>/`,
+  so every internal link needs `/SwiftLinuxDemo/` as a path prefix.
+
+The `swift package generate-documentation` invocation comes from
+[swift-docc-plugin][docc-plugin], a SwiftPM plugin you add to
+`Package.swift` as a dependency. Once it's there, the command becomes
+available as a package plugin without further setup.
+
+[docc-plugin]: https://github.com/swiftlang/swift-docc-plugin
 
 ## The deploy step
+
+GitHub's official Pages actions handle the upload and deploy:
 
 ```yaml
 - uses: actions/upload-pages-artifact@v3
@@ -40,8 +77,8 @@ Three flags worth unpacking:
 - uses: actions/deploy-pages@v4
 ```
 
-Two actions, in order: package the `_site` folder as a Pages artifact, then
-deploy it. The deploy step needs:
+Two actions, in order: package the `_site` folder as a Pages
+artifact, then deploy it. The deploy job needs:
 
 ```yaml
 permissions:
@@ -49,24 +86,42 @@ permissions:
   id-token: write
 ```
 
-And the repo needs Pages enabled with the "GitHub Actions" build source
-(Settings → Pages → Source: GitHub Actions, or `gh api -X POST
-/repos/<owner>/<repo>/pages -f build_type=workflow`).
+`pages: write` is the obvious one. `id-token: write` is there for the
+same reason it was in <doc:03-Attestation>: GitHub uses an OIDC token
+to verify that the deploy is coming from a workflow run authorized
+to publish to this repo's Pages site. The token doesn't get used for
+artifact signing here, only for *who-can-deploy* authorization.
 
-## Why a separate target for docs?
+And the repository itself needs Pages enabled with the *GitHub
+Actions* build source. Either through the UI
+(`Settings → Pages → Source: GitHub Actions`) or via the API in one
+shot:
 
-DocC builds documentation for *one* target at a time. Splitting the package
-into a thin executable (`SwiftLinuxDemo`) and a library
-(`SwiftLinuxDemoCore`) puts the documented surface in the library. The CLI
-stays as a small ArgumentParser shim that calls into the library — easier
-to test, easier to document.
+```bash
+gh api -X POST /repos/<owner>/<repo>/pages -f build_type=workflow
+```
+
+## Why a separate target for documentation?
+
+DocC builds documentation for *one* target at a time. Splitting the
+package into a thin executable (`SwiftLinuxDemo`) and a library
+(`SwiftLinuxDemoCore`) means the documented surface lives in the
+library, and the CLI stays as a small `ArgumentParser` shim that
+calls into it. That split makes the executable easier to test, easier
+to reuse from other code, and easier to document — DocC will only
+have to walk one module.
 
 ## Meta: this page
 
 The article you're reading is `04-DocC-On-Pages.md` inside
-`Sources/SwiftLinuxDemoCore/Documentation.docc/`. The build command above
-turns it into HTML and the deploy step pushes it to the URL you opened.
+`Sources/SwiftLinuxDemoCore/Documentation.docc/`. The build command
+above turns it into HTML, and the deploy step pushes it to the URL
+you opened.
 
 ## See Also
 
 - <doc:05-Discoveries>
+- [DocC documentation reference][docc] on swift.org.
+- [GitHub Pages and Actions integration][pages-actions].
+
+[pages-actions]: https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow

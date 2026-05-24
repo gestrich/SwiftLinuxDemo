@@ -1,9 +1,18 @@
 # Building on Linux
 
-What `--static-swift-stdlib` actually does, why apt-installing
-`libcurl4-openssl-dev` and `libxml2-dev` is necessary, and why we still pin
-Swift via `swift-actions/setup-swift` when Ubuntu already ships a Swift
-toolchain.
+## What's different about a Linux Swift build
+
+Swift on Linux behaves differently from Swift on macOS in a few small
+but important ways, and a CI workflow that doesn't account for them
+either won't build at all or will produce a binary that fails to run
+on anyone else's machine. This chapter walks through each
+Linux-specific concern and the matching line of YAML that addresses
+it.
+
+The chapter sticks to the *build* job inside `.github/workflows/release.yml`.
+The release pipeline as a whole is in <doc:01-The-Pipeline>; the
+attestation step that runs immediately after this build is in
+<doc:03-Attestation>.
 
 ## The build command
 

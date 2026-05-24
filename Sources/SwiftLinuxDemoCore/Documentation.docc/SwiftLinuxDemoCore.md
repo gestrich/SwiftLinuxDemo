@@ -1,29 +1,44 @@
 # ``SwiftLinuxDemoCore``
 
-A tiny Swift CLI that demonstrates building, attesting, and shipping a
-verifiable Linux binary from GitHub Actions.
+A working example of how a small Swift command-line tool can be built,
+signed, and published in a way that anyone can independently verify —
+from raw source code through to a binary downloaded on someone else's
+machine.
 
-## Overview
+## What this project is
 
-`swift-linux-demo` is the runnable companion to the [Linux Builds & GitHub
-Build Provenance][source-guide] guide. The same patterns the guide describes
-— `--static-swift-stdlib`, `actions/attest-build-provenance@v2`,
-`gh attestation verify`, OIDC trust roots — live in this repository's
-`.github/workflows/release.yml`, where you can read them in one file instead
-of inferring them across a larger codebase.
+When you download a binary from the internet, you usually have no way
+to confirm where it actually came from. The source code might be open
+and well-audited, but the binary on the release page is opaque: it
+could have been built from a different commit, modified after the fact,
+or replaced entirely with something malicious. Most of the time, all
+you have to go on is *"the URL looks official."*
 
-The chapters walk both layers in order: the *mechanics* (what each line of
-YAML does) and the *trust model* underneath them (what supply-chain
-problem provenance and attestation actually solve, and — just as
-importantly — what they don't). The one-line mental model:
+This project shows what a stronger model looks like in practice. The
+Swift CLI it ships is deliberately small — a handful of subcommands
+wrapping a couple of library targets. The interesting part is the
+*release pipeline* around it. Every release is built on a Linux runner
+from a specific commit of this repository, packaged with the Swift
+runtime statically linked, and accompanied by a cryptographic proof —
+signed during the build itself — that the resulting binary came from
+that exact source.
 
-> *Attestation proves how a binary was produced; provenance is the
-> overall history that makes that proof meaningful.*
+A user who downloads the binary can verify all of those claims with a
+single command, without needing to trust the maintainer's account
+security, the CDN that served the file, or any other link in the
+chain.
 
-Each chapter is anchored in a file in *this* repository, so you can open
-the file alongside the chapter and follow along.
+## How the chapters fit together
 
-[source-guide]: https://github.com/gestrich/AIDevTools/blob/main/docs/guides/linux-builds-and-attestations.html
+The walkthrough has two threads running side by side: the *mechanics*
+(the YAML files, the build flags, the gh CLI commands) and the *trust
+model* underneath them — what supply-chain problem each piece actually
+solves, and, just as importantly, what it doesn't.
+
+One sentence to keep in mind throughout:
+
+> Attestation proves *how* a binary was produced; provenance is the
+> broader history that gives that proof meaning.
 
 ## Topics
 
