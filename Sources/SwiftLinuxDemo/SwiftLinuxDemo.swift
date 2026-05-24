@@ -7,7 +7,7 @@ struct SwiftLinuxDemo: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swift-linux-demo",
         abstract: "A tiny Swift CLI used to demonstrate Linux GitHub Actions releases with build provenance.",
-        version: "0.1.0",
+        version: "0.2.0",
         subcommands: [Greet.self, Hash.self, Info.self, Fetch.self],
         defaultSubcommand: Info.self
     )
