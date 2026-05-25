@@ -38,33 +38,7 @@ The Swift CLI itself is deliberately small: a handful of `greet`,
 The interesting subject of this project is the *pipeline* around it,
 not the CLI surface.
 
-## How the chapters fit together
-
-Each chapter zooms into one piece of the pipeline. Read in order for
-the full walkthrough, or jump straight to the topic that matches what
-you're stuck on.
-
-- <doc:01-The-Pipeline> — bird's-eye view: what a release pipeline
-  is, the steps from `git tag` to a downstream user's verification
-  command, and the open-source projects each step plugs into.
-- <doc:02-Building-On-Linux> — what's different about a Linux Swift
-  build: `--static-swift-stdlib`, the `libcurl4-openssl-dev` /
-  `libxml2-dev` apt packages, and why we pin Swift even though Ubuntu
-  ships it.
-- <doc:03-Attestation> — the cryptographic half: how a release gets
-  signed by both Sigstore (during the build) and GitHub itself (when
-  immutable releases is enabled), and the two `gh` commands an end
-  user runs to verify each layer.
-- <doc:04-DocC-On-Pages> — the documentation-publishing workflow that
-  produces this site.
-- <doc:05-Discoveries> — empirical answers to *"which conditional
-  pattern in Package.swift prevents which compiler error,"* captured
-  by an experiments workflow that intentionally breaks each guard one
-  at a time.
-
 ## Topics
-
-### Walkthrough
 
 - <doc:01-The-Pipeline>
 - <doc:02-Building-On-Linux>

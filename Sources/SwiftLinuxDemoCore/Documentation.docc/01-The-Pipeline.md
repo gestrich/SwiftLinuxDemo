@@ -10,8 +10,11 @@ how much of that path is observable, and how much of it the user has
 to take on trust.
 
 This project's pipeline is fully automated and fully public. Every
-step is defined in a file inside this repo. Every step runs in a
-fresh, ephemeral container that nobody can prepopulate. And the
+step is defined in a file inside this repo, so anyone can read what
+the pipeline does before running it. Every step runs on a clean,
+single-use VM that GitHub provisions just for that build — no
+leftover files from previous runs, no pre-installed tooling a third
+party could have planted, no persistent state between builds. And the
 artifact every step produces is cryptographically tied to the commit
 it was built from — so a user holding a downloaded tarball can prove
 which commit produced it without trusting anyone along the way.
