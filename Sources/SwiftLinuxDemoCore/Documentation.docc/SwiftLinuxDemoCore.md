@@ -21,11 +21,10 @@ step a real Linux Swift release needs is here:
   version tag is the one gesture that triggers a release, with the
   same build and tests also running automatically on every push to
   catch problems before tag time.
-- **Cryptographic provenance** for every release, in two complementary
-  layers — a build-provenance attestation signed via Sigstore during
-  the build, plus a GitHub-signed release-integrity attestation for
-  immutable releases — together with the `gh` commands a downstream
-  user runs to verify them.
+- **Cryptographic provenance** for every release — so anyone who
+  downloads a binary can independently prove it really came from
+  this repository's build, not from a tampered or impersonated
+  release page.
 - **A DocC documentation site** — the one you're reading — built by a
   workflow in the same repo and deployed to GitHub Pages.
 
