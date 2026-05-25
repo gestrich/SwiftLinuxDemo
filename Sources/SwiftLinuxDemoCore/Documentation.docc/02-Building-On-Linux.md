@@ -5,14 +5,14 @@
 Swift on Linux behaves differently from Swift on macOS in a few small
 but important ways, and a CI workflow that doesn't account for them
 either won't build at all or will produce a binary that fails to run
-on anyone else's machine. This chapter walks through each
-Linux-specific concern and the matching line of YAML that addresses
-it.
+on anyone else's machine.
 
-The chapter sticks to the *build* job inside `.github/workflows/release.yml`.
-The release pipeline as a whole is in <doc:01-The-Pipeline>; the
-attestation step that runs immediately after this build is in
-<doc:03-Attestation>.
+The Linux-specific concerns boil down to three: a build flag that
+bakes the Swift runtime into the binary, a couple of system packages
+that have to be installed before the Swift compiler can finish, and a
+pin on the Swift toolchain so a runner image upgrade doesn't silently
+change which compiler built the release. Each one shows up in a
+matching line of YAML inside `.github/workflows/release.yml`.
 
 ## The build command
 

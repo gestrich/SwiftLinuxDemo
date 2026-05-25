@@ -1,19 +1,16 @@
 # Publishing documentation with DocC and GitHub Pages
 
-## Why this chapter
-
-The site you're reading right now exists because Swift's
-documentation toolchain — [DocC][docc] — and GitHub's static hosting
-product — [GitHub Pages][pages] — fit together cleanly with a small
-workflow file in this repo. The chapter walks through that workflow,
-the three flags on the build command that make the output suitable
-for a static host, and the one extra permission scope the deploy step
-needs.
+## Why publish documentation as a real website
 
 If you've shipped a Swift library before but always sent users to a
-README on GitHub, this is the upgrade path: real rendered
-documentation, with full-text symbol pages, hosted on a free URL,
-rebuilt on every push.
+README on GitHub, this is the upgrade path: rendered documentation
+with full symbol pages, code examples, and full-text search — hosted
+on a free URL and rebuilt automatically on every push to `main`.
+
+[DocC][docc] is Apple's documentation compiler; [GitHub Pages][pages]
+is GitHub's static-site host. The two fit together cleanly with a
+small workflow file plus three flags on the build command and one
+extra permission scope on the deploy step.
 
 [docc]: https://www.swift.org/documentation/docc/
 [pages]: https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages
@@ -98,7 +95,7 @@ Actions* build source. Either through the UI
 shot:
 
 ```bash
-gh api -X POST /repos/<owner>/<repo>/pages -f build_type=workflow
+gh api -X POST /repos/gestrich/SwiftLinuxDemo/pages -f build_type=workflow
 ```
 
 ## Why a separate target for documentation?
@@ -110,13 +107,6 @@ library, and the CLI stays as a small `ArgumentParser` shim that
 calls into it. That split makes the executable easier to test, easier
 to reuse from other code, and easier to document — DocC will only
 have to walk one module.
-
-## Meta: this page
-
-The article you're reading is `04-DocC-On-Pages.md` inside
-`Sources/SwiftLinuxDemoCore/Documentation.docc/`. The build command
-above turns it into HTML, and the deploy step pushes it to the URL
-you opened.
 
 ## See Also
 

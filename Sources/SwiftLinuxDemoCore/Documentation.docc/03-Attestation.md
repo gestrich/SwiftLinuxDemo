@@ -1,6 +1,6 @@
 # Releases anyone can verify
 
-## The problem this chapter is solving
+## The supply-chain trust problem
 
 Every binary on every release page on the internet has the same
 problem: you can't see what's inside. Even when the source code is
@@ -10,17 +10,12 @@ tag suggests, modified after the build finished, or replaced wholesale
 with something malicious — and from the outside, there's no way to
 tell.
 
-This is the *supply-chain trust problem.* A whole ecosystem of
-open-source projects has grown up to address it over the last few
-years, and the four lines of YAML this chapter walks through plug into
-that ecosystem directly. By the end you should be able to:
-
-- Read a release pipeline and recognize *which* of those ecosystems is
-  doing what.
-- Explain to a colleague the difference between *provenance*,
-  *attestation*, and *signature*.
-- Run `gh attestation verify` against a binary and understand what it
-  actually proved, and what it didn't.
+A whole ecosystem of open-source projects has grown up over the last
+few years to address this. The four-line workflow step further down
+plugs straight into that ecosystem, producing a release that anyone
+can verify back to a specific commit and workflow run — no shared
+secret, no maintainer-managed signing key, no trust placed in the
+CDN that served the bytes.
 
 ## Vocabulary
 
@@ -62,7 +57,7 @@ The one-line mental model:
 > Attestation proves *how* a binary was produced; provenance is the
 > overall history that makes that proof meaningful.
 
-## The four projects this chapter touches
+## Four projects make this work
 
 The vocabulary above is implemented by a small handful of cooperating
 open-source projects. Each one solves a piece of the problem the
@@ -100,8 +95,9 @@ minutes. Two sub-projects of Sigstore matter here:
 that defines *what an attestation should contain.* Where Sigstore
 gives you signed bytes, SLSA tells you what those bytes ought to say:
 the artifact's hash, the builder's identity, the source repository,
-the commit, the workflow inputs. The actions step this chapter is
-about emits attestations in the SLSA Provenance v1 format.
+the commit, the workflow inputs. The
+`actions/attest-build-provenance` step below emits attestations in
+the SLSA Provenance v1 format.
 
 **[in-toto][in-toto]** is the *envelope format* SLSA Provenance lives
 inside. SLSA defines the *contents*; in-toto defines the JSON envelope
@@ -143,10 +139,10 @@ different questions and are signed by different parties.
 | Answers | *"Was this byte sequence built by the claimed workflow run?"* | *"Is this the official immutable release for this tag, and is this file one of its named assets?"* |
 | Emitted by | `actions/attest-build-provenance@v2`, during the build job | GitHub itself, when an immutable release is published |
 | Signed using | Public [Sigstore][sigstore] (Fulcio CA at `sigstore.dev`) | GitHub's own Fulcio instance (`O=GitHub, Inc.`) |
-| Signer identity (SAN) | `…/.github/workflows/release.yml@refs/tags/vX.Y.Z` | `https://dotcom.releases.github.com` |
+| Signer identity (SAN) | `…/.github/workflows/release.yml@refs/tags/v1.2.0` | `https://dotcom.releases.github.com` |
 | Predicate type | `https://slsa.dev/provenance/v1` | `https://in-toto.io/attestation/release/v0.2` |
 | Subject | the file + its SHA-256 | the tag PURL + each named asset's SHA-256 |
-| Verified with | `gh attestation verify <file> --repo <owner/repo>` | `gh release verify <tag>` / `gh release verify-asset <tag> <file>` |
+| Verified with | `gh attestation verify <file> --repo gestrich/SwiftLinuxDemo` | `gh release verify v1.2.0 --repo gestrich/SwiftLinuxDemo` / `gh release verify-asset v1.2.0 <file> --repo gestrich/SwiftLinuxDemo` |
 | Available since | August 2023 (GA) | October 2025 (GA) |
 
 The two layers are *complementary*, not redundant. The
@@ -264,7 +260,7 @@ Either through the UI (`Settings → General → Releases → Enable
 release immutability`) or in one shot via the REST API:
 
 ```bash
-gh api -X PUT /repos/<owner>/<repo>/immutable-releases
+gh api -X PUT /repos/gestrich/SwiftLinuxDemo/immutable-releases
 # → {"enabled":true,"enforced_by_owner":false}
 ```
 
@@ -287,7 +283,7 @@ GitHub to:
 You can confirm a given release is immutable via the API:
 
 ```bash
-gh release view <tag> --repo <owner>/<repo> --json isImmutable
+gh release view v1.2.0 --repo gestrich/SwiftLinuxDemo --json isImmutable
 # → {"isImmutable":true}
 ```
 
@@ -437,9 +433,9 @@ provenance attestation for the *original* `v1.2.0` build still
 exists and is still valid for the original binary — but a verifier
 who only checks *"came from this repo"* won't notice the swap.
 
-`gh attestation verify --repo <owner>/<repo>` is the easy path; it
-passes as long as *any* attestation in the repo matches the binary's
-hash. For stronger guarantees, also pin:
+`gh attestation verify --repo gestrich/SwiftLinuxDemo` is the easy
+path; it passes as long as *any* attestation in the repo matches the
+binary's hash. For stronger guarantees, also pin:
 
 - the **commit SHA** (the strongest, most precise pin),
 - and/or the **workflow file path** (so a different workflow in the
@@ -451,8 +447,8 @@ those fields yourself if your policy requires them, or use the
 
 ```bash
 gh attestation verify swift-linux-demo-linux-x86_64.tar.gz \
-  --repo <owner>/<repo> \
-  --signer-workflow <owner>/<repo>/.github/workflows/release.yml
+  --repo gestrich/SwiftLinuxDemo \
+  --signer-workflow gestrich/SwiftLinuxDemo/.github/workflows/release.yml
 ```
 
 The release-integrity path (Path B above) sidesteps the tag-mutability
@@ -477,10 +473,12 @@ different questions.
 
 ```bash
 # (1) Did this file come from the official immutable release for this tag?
-gh release verify-asset <tag> <file> --repo <owner>/<repo>
+gh release verify-asset v1.2.0 swift-linux-demo-linux-x86_64.tar.gz \
+  --repo gestrich/SwiftLinuxDemo
 
 # (2) Was the file built by the workflow definition we expect?
-gh attestation verify <file> --repo <owner>/<repo>
+gh attestation verify swift-linux-demo-linux-x86_64.tar.gz \
+  --repo gestrich/SwiftLinuxDemo
 ```
 
 `verify-asset` is the consumer-friendly check. It's the one to put
@@ -509,8 +507,9 @@ workflow file is allowed to produce attestations (otherwise *any*
 workflow in the repo qualifies):
 
 ```bash
-gh attestation verify <file> --repo <owner>/<repo> \
-  --signer-workflow <owner>/<repo>/.github/workflows/release.yml
+gh attestation verify swift-linux-demo-linux-x86_64.tar.gz \
+  --repo gestrich/SwiftLinuxDemo \
+  --signer-workflow gestrich/SwiftLinuxDemo/.github/workflows/release.yml
 ```
 
 ### A note on silent success
@@ -535,7 +534,7 @@ manuals.
 
 - <doc:04-DocC-On-Pages>
 - The [Sigstore docs][sigstore-docs] — Fulcio, Rekor, Cosign, in
-  deeper detail than this chapter.
+  deeper detail than what's covered here.
 - The [SLSA v1.0 specification][slsa-v1] — the semantic content of a
   provenance statement.
 

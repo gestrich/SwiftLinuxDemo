@@ -1,6 +1,6 @@
 # Cross-platform Swift packages: which guard does what
 
-## Why this chapter exists
+## The empirical question
 
 Cross-platform Swift packages quickly accumulate conditional code:
 [`#if os(macOS)`][lang-conditional] blocks inside `Package.swift`,
@@ -10,18 +10,11 @@ Apple's documentation describes each one in isolation, but the
 question that actually matters when you're staring at an unfamiliar
 error message is: *which guard would have prevented this?*
 
-This chapter answers that empirically. For each of the three patterns
-this repo uses, we strip the guard on a Linux runner and capture the
-literal compiler diagnostic. The *"what does this guard actually
-prevent"* answer is then exactly the error you see when it isn't
-there.
-
-Read this chapter once you've built a few cross-platform packages and
-want to understand *which knob to reach for when* — not the first
-time you're learning that conditional Swift code exists at all. The
-section <doc:02-Building-On-Linux#Three-conditional-patterns-three-different-jobs>
-in the previous chapter is the shorter introduction; this chapter is
-the empirical follow-up.
+The answer below is empirical. For each of the three patterns this
+repo uses, the experiments workflow strips the guard on a Linux
+runner and captures the literal compiler diagnostic. The *"what does
+this guard actually prevent"* answer is then exactly the error you
+see when it isn't there.
 
 [lang-conditional]: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/statements/#Conditional-Compilation-Block
 [lang-canimport]: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/statements/#Conditional-Compilation-Block
@@ -314,5 +307,9 @@ follow which guard solves which problem.
 ## See Also
 
 - <doc:02-Building-On-Linux>
-- The source guide's "Discoveries 14.1" — the theory companion that
-  this chapter empirically tests.
+- [SE-0273][se-0273] — the proposal that introduced
+  `.when(platforms:)` on target dependencies.
+- [TargetDependencyCondition reference][when-platforms] — the
+  official SwiftPM API docs for the manifest-level condition.
+
+[se-0273]: https://github.com/swiftlang/swift-evolution/blob/main/proposals/0273-swiftpm-conditional-target-dependencies.md

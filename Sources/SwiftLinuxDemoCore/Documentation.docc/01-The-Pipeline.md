@@ -19,10 +19,6 @@ artifact every step produces is cryptographically tied to the commit
 it was built from — so a user holding a downloaded tarball can prove
 which commit produced it without trusting anyone along the way.
 
-The chapters that follow zoom into the steps individually. This
-chapter introduces the steps themselves, and the three open-source
-projects that make the cryptographic half of the pipeline possible.
-
 ## What happens on every release
 
 Three things happen on every release, in order:
@@ -38,8 +34,8 @@ Here's the full chain — from the maintainer's first `git push` to the
 end user running the verification command — laid out as a tree:
 
 ```
-scripts/release.sh vX.Y.Z
-  └─ git tag + git push origin vX.Y.Z
+scripts/release.sh v1.2.0
+  └─ git tag + git push origin v1.2.0
         └─ release.yml fires on  tags: ['v*']
               ├─ job: test         (swift test on Linux)
               ├─ job: build-linux  (swift build --static-swift-stdlib, tar)
@@ -51,12 +47,10 @@ scripts/release.sh vX.Y.Z
                 end user: install.sh
                         │
                         ▼
-                end user: gh attestation verify <tarball> --repo <owner/repo>
+                end user: gh attestation verify \
+                          swift-linux-demo-linux-x86_64.tar.gz \
+                          --repo gestrich/SwiftLinuxDemo
 ```
-
-Each of the boxes above has its own chapter. The build step (the heaviest
-of the three) is covered by <doc:02-Building-On-Linux>. The attestation
-step (the most conceptually loaded) is covered by <doc:03-Attestation>.
 
 ## What gives the pipeline its trust properties
 
@@ -78,8 +72,7 @@ can't.
   burden, and a single secret to steal. OIDC instead lets the workflow
   ask GitHub, at runtime, for a token whose contents (which repo, which
   workflow file, which commit, which run) are filled in by GitHub
-  itself and cannot be forged. We'll see in <doc:03-Attestation> who
-  consumes that token and what they do with it.
+  itself and cannot be forged.
 
 - **[Sigstore][sigstore]** — public, free infrastructure for "keyless"
   software signing. Sigstore takes the GitHub-issued OIDC token in
@@ -111,8 +104,8 @@ target. If `v1.2.0` ever changes, something has gone wrong.
 The attestation closes the loop by pinning the underlying *commit SHA*
 into the signed statement. Even if someone later force-moved
 `v1.2.0` to a different commit, the original attestation still
-references the original commit. <doc:03-Attestation> covers how that
-commit pin is used during verification.
+references the original commit, so end-user verification still
+catches the swap.
 
 The workflow trigger is the conventional idiom for "release on tag push":
 
@@ -133,11 +126,12 @@ aligned.
 ## Why Linux only?
 
 This project deliberately ships a Linux-only release. A real
-production tool would usually ship at least macOS and Windows too, but
-the narrower scope keeps every step of the workflow short enough to
-read in a single sitting. Adding a `build-macos` job is a copy-and-edit
-exercise — the attestation, release, and verification pieces work the
-same way on each platform.
+production tool would usually ship at least macOS and Windows too —
+adding a `build-macos` job is a copy-and-edit exercise, since the
+attestation, release, and verification pieces work the same way on
+each platform. The build-time concerns that *are* different per
+platform (static stdlib, system packages, cross-platform conditional
+code) all show up on the Linux side.
 
 ## Where the pipeline lives in this repo
 
