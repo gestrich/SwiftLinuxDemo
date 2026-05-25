@@ -17,9 +17,10 @@ step a real Linux Swift release needs is here:
   works on any Linux machine, not just the one it was built on,
   along with the system-library surprises Linux brings that you
   never have to think about on macOS.
-- **A tag-triggered GitHub Actions release pipeline** — `release.yml`,
-  the `release.sh` wrapper that protects against bad tags, and the
-  separate `ci.yml` that runs the same build + test on every push.
+- **A tag-triggered GitHub Actions release pipeline** — pushing a
+  version tag is the one gesture that triggers a release, with the
+  same build and tests also running automatically on every push to
+  catch problems before tag time.
 - **Cryptographic provenance** for every release, in two complementary
   layers — a build-provenance attestation signed via Sigstore during
   the build, plus a GitHub-signed release-integrity attestation for
