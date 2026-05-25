@@ -329,3 +329,91 @@ jobs:
         with:
           name: exp-f-strip-source-level-if-os
           path: experiments/exp-f-strip-source-level-if-os.log
+
+  # --------------------------------------------------------------------------
+  # Toolchain-source experiment: can we drop swift-actions/setup-swift and
+  # rely on whatever Swift the runner image ships?
+  # --------------------------------------------------------------------------
+
+  no-setup-swift-on-ubuntu-24:
+    name: "EXP-G — no setup-swift, ubuntu-24.04 only"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe what the image ships
+        run: |
+          mkdir -p experiments
+          {
+            echo "## which swift"
+            which swift || echo "(swift not on PATH)"
+            echo ""
+            echo "## swift --version"
+            swift --version 2>&1 || true
+            echo ""
+            echo "## /etc/os-release"
+            cat /etc/os-release
+            echo ""
+            echo "## libcurl4-openssl-dev installed?"
+            dpkg -l libcurl4-openssl-dev 2>&1 | tail -3 || true
+            echo "## libxml2-dev installed?"
+            dpkg -l libxml2-dev 2>&1 | tail -3 || true
+          } > experiments/exp-g-probe.log
+          cat experiments/exp-g-probe.log
+      - name: Install system dependencies
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Build with image-supplied Swift
+        run: |
+          set +e
+          swift build > experiments/exp-g-build.log 2>&1
+          rc=$?
+          echo "---" >> experiments/exp-g-build.log
+          echo "exitcode=$rc" >> experiments/exp-g-build.log
+          tail -40 experiments/exp-g-build.log
+      - name: Test with image-supplied Swift
+        run: |
+          set +e
+          swift test > experiments/exp-g-test.log 2>&1
+          rc=$?
+          echo "---" >> experiments/exp-g-test.log
+          echo "exitcode=$rc" >> experiments/exp-g-test.log
+          tail -40 experiments/exp-g-test.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exp-g-no-setup-swift
+          path: experiments/exp-g-*.log
+
+  no-setup-swift-on-ubuntu-22:
+    name: "EXP-H — no setup-swift, ubuntu-22.04 only"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe what the image ships
+        run: |
+          mkdir -p experiments
+          {
+            echo "## which swift"
+            which swift || echo "(swift not on PATH)"
+            echo ""
+            echo "## swift --version"
+            swift --version 2>&1 || true
+            echo ""
+            echo "## /etc/os-release"
+            cat /etc/os-release
+          } > experiments/exp-h-probe.log
+          cat experiments/exp-h-probe.log
+      - name: Install system dependencies
+        run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+      - name: Build with image-supplied Swift
+        run: |
+          set +e
+          swift build > experiments/exp-h-build.log 2>&1
+          rc=$?
+          echo "---" >> experiments/exp-h-build.log
+          echo "exitcode=$rc" >> experiments/exp-h-build.log
+          tail -40 experiments/exp-h-build.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exp-h-no-setup-swift-22
+          path: experiments/exp-h-*.log

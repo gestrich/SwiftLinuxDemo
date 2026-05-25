@@ -1,15 +1,12 @@
 # ``SwiftLinuxDemoCore``
 
 A working example of every step needed to build, test, release, and
-publish a Swift command-line tool for Linux using GitHub Actions —
-written small enough to read end to end.
+publish a Swift command-line tool for Linux using GitHub Actions.
 
 ## What this project covers
 
 Shipping a Swift CLI on Linux through GitHub Actions involves more
-moving parts than the equivalent flow on macOS, and the documentation
-for each part lives in a different place (Swift Package Manager,
-GitHub Actions, GitHub Pages, Sigstore, SLSA, …). This repository pulls
+moving parts than the equivalent flow on macOS. This repository pulls
 a complete working version of that flow into one small project. Every
 step a real Linux Swift release needs is here:
 
