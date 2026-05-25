@@ -23,68 +23,154 @@ matching line of YAML inside `.github/workflows/release.yml`.
 
 Three flags, each with a specific job:
 
-- `-c release` — optimized build, not debug.
-- `--product swift-linux-demo` — the executable product declared in
-  `Package.swift`. Without this, `swift build` builds everything; with it,
-  we only build the CLI artifact we ship.
-- `--static-swift-stdlib` — statically link the Swift runtime libraries
-  into the binary.
+- [`-c release`][build-config-docs] — selects the *release* build
+  configuration. Without it, `swift build` produces a debug binary
+  that's slower and bigger. Documented in
+  *[Using build configurations][build-config-docs]* on swift.org.
+- [`--product swift-linux-demo`][products-docs] — names a single
+  executable product from `Package.swift` to build. Without it,
+  `swift build` builds every target in the package; with it, only
+  the CLI artifact we actually ship gets compiled.
+- [`--static-swift-stdlib`][static-stdlib] — statically links the
+  Swift runtime libraries into the binary. The next section is
+  entirely about why this one matters on Linux.
+
+[build-config-docs]: https://docs.swift.org/swiftpm/documentation/packagemanagerdocs/usingbuildconfigurations/
+[products-docs]: https://docs.swift.org/package-manager/PackageDescription/PackageDescription.html#Product
+[static-stdlib]: https://www.swift.org/documentation/articles/static-linux-getting-started.html
 
 ## Why `--static-swift-stdlib`?
 
-Without the flag, the binary dynamically links against `libswiftCore.so`,
-`libFoundation.so`, and friends — files that exist on a machine where the
-Swift toolchain is installed, but not on a stock Ubuntu box. Run the binary
-there and it dies with "library not found."
+On macOS and iOS, the Swift runtime is part of the operating system.
+The same dynamic libraries (`libswiftCore.dylib`, `libFoundation.dylib`,
+and the rest) live in `/usr/lib/swift` on every Apple device, so any
+Swift binary you compile can rely on them being present at runtime.
+This is invisible — you never have to think about it.
 
-With the flag, the Swift runtime is baked into the binary. The file is
-bigger, but it runs on essentially any glibc-based Linux host — which is
-exactly what we want for a downloadable CLI.
+Linux works differently. There is no system-shipped Swift runtime,
+because Swift isn't part of any Linux distribution's base install.
+The Swift runtime libraries only exist on a Linux machine where
+someone explicitly installed a Swift toolchain. So a dynamically-
+linked Swift binary built on Linux runs fine on the build machine
+(which has the toolchain), and dies with `error while loading shared
+libraries: libswiftCore.so` on any stock Ubuntu, Debian, or Alpine
+box that doesn't.
 
-The macOS build of any Swift CLI doesn't need this flag, because macOS ships
-a Swift runtime with the OS. This repo doesn't ship a macOS build at all, so
-the consideration only matters here for context.
+`--static-swift-stdlib` solves this by baking the Swift runtime
+libraries into the binary itself. The output is bigger (this repo's
+`swift-linux-demo` ends up around ~30 MB tarballed) but it runs on
+essentially any glibc-based Linux host with no prerequisite install
+— which is exactly what a downloadable CLI needs.
+
+The macOS build of any Swift CLI doesn't need this flag, because
+macOS does ship the runtime. This repo doesn't produce a macOS
+release, so the consideration only matters here for context.
+
+For the deeper background, see *[Getting Started with the Static
+Linux SDK][static-stdlib]* on swift.org, which also covers a stricter
+mode (the Static Linux SDK) that statically links the C library
+itself so the resulting binary doesn't even need glibc.
 
 ## Why apt-install `libcurl4-openssl-dev` and `libxml2-dev`?
 
-Foundation on Linux is [swift-corelibs-foundation][corelibs] — a from-scratch
-reimplementation of Apple's Foundation that delegates to C libraries instead
-of Apple frameworks:
+This is the first surprise for anyone coming from macOS or iOS
+development: on Apple platforms, "system frameworks" like
+`Foundation`, `URLSession`, and `XMLParser` are bundled with the OS
+itself. You import them and they're just *there*. You never install
+a system library to make `URLSession` work — Apple ships everything
+through the SDK and the runtime.
 
-- `URLSession` on Linux is backed by **libcurl**.
-- `FoundationXML` on Linux is backed by **libxml2**.
+Linux is closer to the metal. There's no concept of a vendor-bundled
+SDK that ships every dependency at once. Each "system framework"
+you'd take for granted on macOS is implemented in terms of standard
+open-source C libraries that may or may not be installed, and that
+your build needs to be able to find — both at compile time (for the
+headers) and at runtime (for the `.so` files).
 
-This repo's `Fetcher.swift` calls `URLSession.shared.data(for:)`. On Linux
-that pulls in Foundation's libcurl-backed URLSession, which means the build
-needs the curl headers (`curl.h`) — not just the runtime `.so`. That's the
-`-dev` suffix: `libcurl4-openssl-dev` includes the development headers that
-Swift's C-interop shims (`_CFURLSessionInterface`) build against.
+[swift-corelibs-foundation][corelibs] is the open-source
+reimplementation of Apple's Foundation that ships with Swift on
+Linux. It exposes the same `Foundation.URLSession` and
+`Foundation.XMLParser` API surface you're used to, but instead of
+calling Apple's `CFNetwork` and `libxml2.dylib` (which only exist on
+macOS), it delegates to two specific C libraries that have been
+shipping on every Linux distribution for decades:
 
-The `ubuntu-latest` image ships the runtime libs but not the `-dev` headers.
-The apt install line is exactly that gap-filler.
+- `URLSession` on Linux is backed by **libcurl** (the same library
+  behind the `curl` CLI).
+- `FoundationXML` on Linux is backed by **libxml2** (the GNOME
+  project's XML parser).
+
+This repo's `Fetcher.swift` calls `URLSession.shared.data(for:)`.
+On Linux that pulls in Foundation's libcurl-backed URLSession, which
+means the build needs the curl C *headers* (`curl.h`) — not just the
+runtime `.so`. That's what the `-dev` suffix is for:
+`libcurl4-openssl-dev` is the Debian/Ubuntu package that includes
+the development headers Swift's C-interop shims
+(`_CFURLSessionInterface`) build against.
+
+The `ubuntu-latest` runner image ships the runtime libs but not the
+`-dev` headers, so the apt install line is exactly that gap-filler:
 
 ```yaml
 - name: Install system dependencies
   run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
 ```
 
+If you ever add a Foundation feature that pulls in a third C
+dependency (e.g. `FoundationCalendar` brings in `tzdata`), the
+symptom is a confusing C-interop error at build time — usually
+along the lines of `module 'CIcu' is not available`. The fix is
+almost always to install one more `-dev` package via the same
+mechanism.
+
 [corelibs]: https://github.com/swiftlang/swift-corelibs-foundation
 
-## Why pin Swift if Ubuntu ships it?
+## Do we even need `setup-swift`?
 
-Both `ubuntu-22.04` and `ubuntu-24.04` runner images ship Swift preinstalled
-(at the time of writing, Swift 6.3.x is in `ubuntu-latest`). If we removed
-the `setup-swift` step entirely, the Linux build would still find a Swift
-toolchain — just whichever one the runner image happens to ship.
+Both `ubuntu-22.04` and `ubuntu-24.04` runner images ship Swift
+preinstalled. Removing the `setup-swift` step entirely — and just
+calling `swift build` directly — does work today. The experiments
+workflow has two jobs (`EXP-G` and `EXP-H`) that test exactly this,
+on each Ubuntu image, with no `setup-swift` step at all:
 
-Two reasons to pin:
+| Image | Preinstalled Swift | `swift build` | `swift test` |
+|---|---|---|---|
+| `ubuntu-22.04` | `6.3.1` at `/usr/local/bin/swift` | ✓ 84 s | ✓ |
+| `ubuntu-24.04` | `6.3.1` at `/usr/local/bin/swift` | ✓ 73 s | ✓ |
 
-1. Runner image bumps roll out gradually over 1–2 months and can change the
-   bundled compiler version. Without a pin, your build is at the mercy of
-   that rollout — a release tagged today might compile against a different
-   Swift than the same commit tagged next month.
-2. The pin gives you one knob to bump intentionally, with a commit that
-   records the change.
+So why keep the step? Three reasons, in increasing order of how much
+you should care about each one:
+
+1. **Version pin.** Without `setup-swift`, the build uses whichever
+   Swift the runner image happens to ship. Runner image bumps roll
+   out gradually over 1–2 months and can change the bundled compiler
+   version. A release tagged today might compile against a different
+   Swift than the same commit tagged next month. With the pin, the
+   compiler version only changes when you (or a CI bot) bump it
+   intentionally, with a commit that records the change.
+
+2. **Cross-version testing.** A matrix build against multiple Swift
+   versions (e.g., 6.2 + 6.3 + the nightly main) needs *some* way
+   to install non-image-default toolchains. `setup-swift` is the
+   straightforward answer; without it, you'd be using
+   [`swiftly`][swiftly] (the official Swift toolchain installer) by
+   hand.
+
+3. **Parity with local dev.** If your `Package.swift`'s
+   `swift-tools-version` is ahead of what the image ships,
+   `setup-swift` is what unblocks the build. (This repo's manifest
+   declares `swift-tools-version: 6.2`, which the image satisfies,
+   so it isn't a concern *here* — but pinning insulates you against
+   a future bump.)
+
+If you don't care about any of those — for example, a hobby project
+where "compiles with whatever Ubuntu has" is fine — pinning
+`ubuntu-22.04` or `ubuntu-24.04` (rather than `ubuntu-latest`) and
+dropping the `setup-swift` step is a valid lighter setup. The cost
+is a slower discovery of Swift version bumps and one fewer knob
+to control.
+
+This repo keeps the step:
 
 ```yaml
 - name: Install Swift
@@ -92,6 +178,15 @@ Two reasons to pin:
   with:
     swift-version: '6.2'
 ```
+
+The `setup-swift` action is community-maintained at
+[swift-actions/setup-swift][setup-swift]. It uses the same
+[`swiftly`][swiftly] installer under the hood, but with the
+GitHub-Actions ergonomics (caching, tool version output, matrix
+support) wrapped around it.
+
+[setup-swift]: https://github.com/swift-actions/setup-swift
+[swiftly]: https://www.swift.org/install/linux/
 
 ## Three conditional patterns, three different jobs
 
