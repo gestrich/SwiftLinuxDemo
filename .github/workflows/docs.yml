@@ -17,13 +17,25 @@ concurrency:
 jobs:
   build:
     name: Build DocC
-    # ubuntu-24.04 ships Swift preinstalled — pinning the image keeps
-    # the toolchain version stable across runs.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Unlike ci.yml and release.yml, this workflow has to use the
+      # `setup-swift` action even though ubuntu-24.04 already ships
+      # Swift. The Ubuntu-supplied toolchain does not include the
+      # swift-docc *render artifacts* (CSS + JS) that DocC needs to
+      # produce a working static site — generating documentation
+      # against the image-supplied Swift yields HTML that references
+      # `/css/...` and `/js/...` URLs that 404, leading to a blank
+      # rendered page. The setup-swift bundle includes the render
+      # artifacts, so we install it here specifically.
+      - name: Install Swift toolchain (for DocC render assets)
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: '6.2'
 
       - name: Install system dependencies
         run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
