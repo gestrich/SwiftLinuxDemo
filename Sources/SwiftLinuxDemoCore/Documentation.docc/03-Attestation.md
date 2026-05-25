@@ -1,4 +1,4 @@
-# Releases anyone can verify
+# Attest
 
 ## The supply-chain trust problem
 

@@ -1,4 +1,4 @@
-# Publishing documentation with DocC and GitHub Pages
+# Document
 
 ## Why publish documentation as a real website
 

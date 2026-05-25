@@ -1,4 +1,4 @@
-# Building on Linux
+# Build
 
 ## What's different about a Linux Swift build
 

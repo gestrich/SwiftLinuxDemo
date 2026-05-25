@@ -1,4 +1,4 @@
-# Cross-platform Swift packages: which guard does what
+# Package
 
 ## The empirical question
 
