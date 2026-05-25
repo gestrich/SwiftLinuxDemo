@@ -13,11 +13,10 @@ step a real Linux Swift release needs is here:
 - **Cross-platform Swift package setup** — how to condition your code
   to compile on Linux, since you're usually sharing the same codebase
   with macOS.
-- **A Linux build that runs anywhere** — `swift build` with
-  `--static-swift-stdlib` so the resulting binary works on any
-  glibc-based host, plus the system packages
-  (`libcurl4-openssl-dev`, `libxml2-dev`) that have to be installed
-  first.
+- **A Linux build that runs anywhere** — producing a binary that
+  works on any Linux machine, not just the one it was built on,
+  along with the system-library surprises Linux brings that you
+  never have to think about on macOS.
 - **A tag-triggered GitHub Actions release pipeline** — `release.yml`,
   the `release.sh` wrapper that protects against bad tags, and the
   separate `ci.yml` that runs the same build + test on every push.
