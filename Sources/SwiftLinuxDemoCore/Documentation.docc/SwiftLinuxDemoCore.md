@@ -10,10 +10,9 @@ moving parts than the equivalent flow on macOS. This repository pulls
 a complete working version of that flow into one small project. Every
 step a real Linux Swift release needs is here:
 
-- **Cross-platform Swift package setup** — dependency conditions
-  (`.when(platforms:)`), target-level platform guards in
-  `Package.swift`, source-level `#if os(...)` / `#if canImport(...)`
-  guards, and which one solves which problem.
+- **Cross-platform Swift package setup** — how to condition your code
+  to compile on Linux, since you're usually sharing the same codebase
+  with macOS.
 - **A Linux build that runs anywhere** — `swift build` with
   `--static-swift-stdlib` so the resulting binary works on any
   glibc-based host, plus the system packages
