@@ -125,68 +125,28 @@ mechanism.
 
 [corelibs]: https://github.com/swiftlang/swift-corelibs-foundation
 
-## Do we even need `setup-swift`?
+## Pinning the Swift toolchain via the Ubuntu image
 
-Both `ubuntu-22.04` and `ubuntu-24.04` runner images ship Swift
-preinstalled. Removing the `setup-swift` step entirely — and just
-calling `swift build` directly — does work today. The experiments
-workflow has two jobs (`EXP-G` and `EXP-H`) that test exactly this,
-on each Ubuntu image, with no `setup-swift` step at all:
-
-| Image | Preinstalled Swift | `swift build` | `swift test` |
-|---|---|---|---|
-| `ubuntu-22.04` | `6.3.1` at `/usr/local/bin/swift` | ✓ 84 s | ✓ |
-| `ubuntu-24.04` | `6.3.1` at `/usr/local/bin/swift` | ✓ 73 s | ✓ |
-
-So why keep the step? Three reasons, in increasing order of how much
-you should care about each one:
-
-1. **Version pin.** Without `setup-swift`, the build uses whichever
-   Swift the runner image happens to ship. Runner image bumps roll
-   out gradually over 1–2 months and can change the bundled compiler
-   version. A release tagged today might compile against a different
-   Swift than the same commit tagged next month. With the pin, the
-   compiler version only changes when you (or a CI bot) bump it
-   intentionally, with a commit that records the change.
-
-2. **Cross-version testing.** A matrix build against multiple Swift
-   versions (e.g., 6.2 + 6.3 + the nightly main) needs *some* way
-   to install non-image-default toolchains. `setup-swift` is the
-   straightforward answer; without it, you'd be using
-   [`swiftly`][swiftly] (the official Swift toolchain installer) by
-   hand.
-
-3. **Parity with local dev.** If your `Package.swift`'s
-   `swift-tools-version` is ahead of what the image ships,
-   `setup-swift` is what unblocks the build. (This repo's manifest
-   declares `swift-tools-version: 6.2`, which the image satisfies,
-   so it isn't a concern *here* — but pinning insulates you against
-   a future bump.)
-
-If you don't care about any of those — for example, a hobby project
-where "compiles with whatever Ubuntu has" is fine — pinning
-`ubuntu-22.04` or `ubuntu-24.04` (rather than `ubuntu-latest`) and
-dropping the `setup-swift` step is a valid lighter setup. The cost
-is a slower discovery of Swift version bumps and one fewer knob
-to control.
-
-This repo keeps the step:
+The `runs-on:` line in this repo's workflows is `ubuntu-24.04`, not
+`ubuntu-latest`:
 
 ```yaml
-- name: Install Swift
-  uses: swift-actions/setup-swift@v2
-  with:
-    swift-version: '6.2'
+build-linux:
+  runs-on: ubuntu-24.04
 ```
 
-The `setup-swift` action is community-maintained at
-[swift-actions/setup-swift][setup-swift]. It uses the same
-[`swiftly`][swiftly] installer under the hood, but with the
-GitHub-Actions ergonomics (caching, tool version output, matrix
-support) wrapped around it.
+That pin is doing more work than it looks. The Ubuntu runner image
+ships Swift preinstalled (`ubuntu-24.04` currently ships Swift
+6.3.1), so pinning the image version is also implicitly pinning the
+Swift toolchain version. The build never has to install a separate
+toolchain — it just uses what the image already has on `PATH`.
 
-[setup-swift]: https://github.com/swift-actions/setup-swift
-[swiftly]: https://www.swift.org/install/linux/
+`ubuntu-latest` would also work, but it floats: GitHub remaps it to a
+newer Ubuntu (and a newer Swift) every few months, so a release
+tagged today might compile against a different Swift than the same
+commit tagged next quarter. Pinning the image freezes the entire
+build environment — OS version, Swift version, system libraries —
+until you intentionally bump the pin in a commit.
 
 ## Three conditional patterns, three different jobs
 

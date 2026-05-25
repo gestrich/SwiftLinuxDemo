@@ -19,16 +19,11 @@ window at the cost of a few extra minutes per release.
 ```yaml
 test:
   name: Test
-  runs-on: ubuntu-latest
+  runs-on: ubuntu-24.04
   timeout-minutes: 30
   steps:
     - name: Checkout
       uses: actions/checkout@v4
-
-    - name: Install Swift
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: '6.2'
 
     - name: Install system dependencies
       run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
@@ -37,10 +32,11 @@ test:
       run: swift test
 ```
 
-Three setup steps, then one line that does the actual work. The
-setup-swift and apt-install steps are the same ones the build job
-runs (covered in <doc:02-Building-On-Linux>); the test job just runs
-`swift test` against them.
+Two setup steps, then one line that does the actual work. The
+`ubuntu-24.04` runner image ships Swift preinstalled, and pinning
+the image version is also how the workflow holds the Swift toolchain
+version stable (see <doc:02-Building-On-Linux>). The apt step covers
+the C dependencies Foundation needs on Linux.
 
 Running on Linux exclusively is a deliberate scope choice for this
 repo, but it has a real side effect: every test in the suite has to
