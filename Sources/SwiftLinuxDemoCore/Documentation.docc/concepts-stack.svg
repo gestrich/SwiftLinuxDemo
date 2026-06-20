@@ -1,55 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 600" font-family="-apple-system, Helvetica, Arial, sans-serif" role="img" aria-label="The system stack from your Swift code down to hardware">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 650" font-family="-apple-system, Helvetica, Arial, sans-serif" role="img" aria-label="The system stack as three zones — user space, kernel space, and hardware — separated by interface boundaries">
   <!-- dark card -->
-  <rect x="6" y="6" width="828" height="588" rx="16" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
+  <rect x="6" y="6" width="808" height="638" rx="16" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
 
-  <!-- left grouping brackets: user space / kernel / hardware -->
-  <g stroke="#8b949e" stroke-width="1.5" fill="none">
-    <path d="M186 44 L176 44 L176 344 L186 344"/>
-    <path d="M186 354 L176 354 L176 406 L186 406"/>
-    <path d="M186 416 L176 416 L176 530 L186 530"/>
-  </g>
-  <g fill="#8b949e" font-size="12" text-anchor="end">
-    <text x="162" y="190">user</text>
-    <text x="162" y="205">space</text>
-    <text x="162" y="384">kernel</text>
-    <text x="162" y="469">hard-</text>
-    <text x="162" y="484">ware</text>
-  </g>
+  <!-- ===== USER SPACE zone ===== -->
+  <rect x="70" y="40" width="680" height="262" rx="12" fill="#161b22" stroke="#f0883e" stroke-width="1.5" stroke-opacity="0.6"/>
+  <text x="90" y="66" font-size="12.5" font-weight="700" letter-spacing="1" fill="#f0883e">USER SPACE</text>
 
-  <!-- layer bars: name (left) + variation (right) -->
-  <!-- 1 -->
-  <rect x="190" y="44" width="590" height="52" rx="9" fill="#f05138"/>
-  <text x="210" y="75" font-size="15" font-weight="600" fill="#ffffff">Your Swift code</text>
-  <text x="760" y="75" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">#if os(…) · platform guards</text>
-  <!-- 2 -->
-  <rect x="190" y="106" width="590" height="52" rx="9" fill="#db6d28"/>
-  <text x="210" y="137" font-size="15" font-weight="600" fill="#ffffff">Swift standard library + Foundation</text>
-  <text x="760" y="137" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">portable core · Foundation optional</text>
-  <!-- 3 -->
-  <rect x="190" y="168" width="590" height="52" rx="9" fill="#bf8700"/>
-  <text x="210" y="199" font-size="15" font-weight="600" fill="#ffffff">Swift runtime</text>
-  <text x="760" y="199" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">ARC · generics · dispatch</text>
-  <!-- 4 -->
-  <rect x="190" y="230" width="590" height="52" rx="9" fill="#8957e5"/>
-  <text x="210" y="261" font-size="15" font-weight="600" fill="#ffffff">System libraries (the C library)</text>
-  <text x="760" y="261" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">glibc · libSystem · musl</text>
-  <!-- 5 -->
-  <rect x="190" y="292" width="590" height="52" rx="9" fill="#6639ba"/>
-  <text x="210" y="323" font-size="15" font-weight="600" fill="#ffffff">System calls</text>
-  <text x="760" y="323" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">open() · read() · close()</text>
-  <!-- 6 -->
-  <rect x="190" y="354" width="590" height="52" rx="9" fill="#1f6feb"/>
-  <text x="210" y="385" font-size="15" font-weight="600" fill="#ffffff">Kernel</text>
-  <text x="760" y="385" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">Linux · XNU</text>
-  <!-- 7 -->
-  <rect x="190" y="416" width="590" height="52" rx="9" fill="#1a7f37"/>
-  <text x="210" y="447" font-size="15" font-weight="600" fill="#ffffff">CPU architecture</text>
-  <text x="760" y="447" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">x86_64 · ARM64 · RISC-V</text>
-  <!-- 8 -->
-  <rect x="190" y="478" width="590" height="52" rx="9" fill="#545d68"/>
-  <text x="210" y="509" font-size="15" font-weight="600" fill="#ffffff">Hardware</text>
-  <text x="760" y="509" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">the physical machine</text>
+  <rect x="86" y="80" width="648" height="46" rx="8" fill="#f05138"/>
+  <text x="104" y="109" font-size="14.5" font-weight="600" fill="#ffffff">Your Swift code</text>
+  <text x="718" y="109" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">#if os(…) · platform guards</text>
+
+  <rect x="86" y="134" width="648" height="46" rx="8" fill="#db6d28"/>
+  <text x="104" y="163" font-size="14.5" font-weight="600" fill="#ffffff">Swift standard library + Foundation</text>
+  <text x="718" y="163" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">portable core · Foundation optional</text>
+
+  <rect x="86" y="188" width="648" height="46" rx="8" fill="#bf8700"/>
+  <text x="104" y="217" font-size="14.5" font-weight="600" fill="#ffffff">Swift runtime</text>
+  <text x="718" y="217" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">ARC · generics · dispatch</text>
+
+  <rect x="86" y="242" width="648" height="46" rx="8" fill="#8957e5"/>
+  <text x="104" y="271" font-size="14.5" font-weight="600" fill="#ffffff">System libraries (the C library)</text>
+  <text x="718" y="271" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">glibc · musl · libSystem</text>
+
+  <!-- boundary: system call ABI -->
+  <rect x="70" y="312" width="680" height="30" rx="8" fill="none" stroke="#8b949e" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="410" y="331" text-anchor="middle" font-size="12.5" font-style="italic" fill="#c9d1d9">system call ABI&#160;&#160;·&#160;&#160;open() · read() · close()</text>
+
+  <!-- ===== KERNEL SPACE zone ===== -->
+  <rect x="70" y="354" width="680" height="100" rx="12" fill="#161b22" stroke="#58a6ff" stroke-width="1.5" stroke-opacity="0.6"/>
+  <text x="90" y="378" font-size="12.5" font-weight="700" letter-spacing="1" fill="#58a6ff">KERNEL SPACE</text>
+
+  <rect x="86" y="392" width="648" height="46" rx="8" fill="#1f6feb"/>
+  <text x="104" y="421" font-size="14.5" font-weight="600" fill="#ffffff">Kernel</text>
+  <text x="718" y="421" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">Linux · XNU · (scheduler, memory, FS, net, drivers)</text>
+
+  <!-- boundary: instruction set -->
+  <rect x="70" y="464" width="680" height="30" rx="8" fill="none" stroke="#8b949e" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="410" y="483" text-anchor="middle" font-size="12.5" font-style="italic" fill="#c9d1d9">instruction set (ISA)&#160;&#160;·&#160;&#160;x86_64 · ARM64 · RISC-V</text>
+
+  <!-- ===== HARDWARE zone ===== -->
+  <rect x="70" y="506" width="680" height="100" rx="12" fill="#161b22" stroke="#8b949e" stroke-width="1.5" stroke-opacity="0.6"/>
+  <text x="90" y="530" font-size="12.5" font-weight="700" letter-spacing="1" fill="#8b949e">HARDWARE</text>
+
+  <rect x="86" y="544" width="648" height="46" rx="8" fill="#545d68"/>
+  <text x="104" y="573" font-size="14.5" font-weight="600" fill="#ffffff">Hardware</text>
+  <text x="718" y="573" font-size="12" text-anchor="end" fill="#ffffff" fill-opacity="0.85">CPU · memory · devices</text>
 
   <!-- footer -->
-  <text x="420" y="562" text-anchor="middle" font-size="12" fill="#8b949e" font-style="italic">Each layer serves the one above it — a request travels down, the result comes back up.</text>
+  <text x="410" y="628" text-anchor="middle" font-size="12" fill="#8b949e" font-style="italic">Solid bars are components (rooms); dashed edges are interfaces (the doorways between them).</text>
 </svg>
