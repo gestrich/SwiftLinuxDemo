@@ -1,7 +1,7 @@
 # ``SwiftLinuxDemoCore``
 
-A working example of every step needed to build, test, release, and
-publish a Swift command-line tool for Linux using GitHub Actions.
+A working example of how to build, test, release, and publish a
+Swift command-line tool for Linux using GitHub Actions.
 
 ## What this project covers
 
@@ -53,34 +53,17 @@ Four things happen on every release, in order:
    attestation bundle are attached to a GitHub Release.
 
 Here's the full chain — from the maintainer's first `git push` to the
-end user running the verification command — laid out as a tree:
+end user running the verification command:
 
-```
-scripts/release.sh v1.2.0
-  └─ git tag + git push origin v1.2.0
-        └─ release.yml fires on  tags: ['v*']
-              ├─ job: test         (swift test on Linux)
-              ├─ job: build-linux  (swift build --static-swift-stdlib, tar)
-              │   └─ step: attest-build-provenance@v2
-              └─ job: release      (gh release create with tarball +
-                                    checksums)
-                    │
-                    ▼
-                end user: install.sh
-                        │
-                        ▼
-                end user: gh attestation verify \
-                          swift-linux-demo-linux-x86_64.tar.gz \
-                          --repo gestrich/SwiftLinuxDemo
-```
+![Flowchart of the release pipeline. Running scripts/release.sh tags and pushes a version, which triggers the release.yml workflow. The workflow runs three jobs — test (swift test on Linux), build-linux (a statically linked build that is tar'd, with a build-provenance attestation step), and release (gh release create with the tarball and checksums). The published tarball is then installed by the end user via install.sh and verified with gh attestation verify against the gestrich/SwiftLinuxDemo repo.](release-pipeline.svg)
 
 ## Topics
 
-- <doc:01-Test>
-- <doc:02-Building-On-Linux>
-- <doc:03-Attestation>
-- <doc:04-DocC-On-Pages>
-- <doc:05-Discoveries>
+- <doc:01-Package>
+- <doc:02-Build>
+- <doc:03-Test>
+- <doc:04-Attest>
+- <doc:05-Document>
 
 ### Library types
 
