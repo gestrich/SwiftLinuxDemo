@@ -59,11 +59,13 @@ end user running the verification command:
 
 ## Topics
 
+- <doc:00-Concepts>
 - <doc:01-Conditional-Compilation>
 - <doc:02-Build>
 - <doc:03-Test>
 - <doc:04-Attest>
 - <doc:05-Document>
+- <doc:06-Cross-Compile>
 
 ### Library types
 
