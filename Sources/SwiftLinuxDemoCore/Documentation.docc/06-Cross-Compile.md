@@ -85,14 +85,8 @@ The dynamic binary this guide builds works under either model — with a
 global runtime present you simply skip the bundling (step 5) and the
 `LD_LIBRARY_PATH`.
 
-Canonical ways to install Swift system-wide on a Pi:
-
-- **swiftly** — Swift's official toolchain manager. Follow the Linux
-  instructions at <https://www.swift.org/install/linux/> (swiftly is
-  distributed as a tarball there), then `swiftly install <version>`. This
-  installs the full swift.org toolchain (compiler + runtime).
-- **apt, community release** — `sudo apt install swiftlang` from the
-  Swift-Arm community repo (`swiftlang` for Debian bookworm aarch64).
+The **Installing Swift on the Pi** section near the end covers the
+concrete, verified ways to do a global install.
 
 | | Bundled-runtime (this guide) | Global runtime |
 |---|---|---|
@@ -288,6 +282,99 @@ $ ~/swift-linux-demo fetch https://example.com
 `info`'s `glibc-hostname` line proves `GlibcGreeter` (a Linux-only target
 calling `gethostname`) is in the binary; `hash` exercises swift-crypto;
 `fetch` exercises Foundation networking over libcurl.
+
+## Installing Swift on the Pi (the global-runtime alternative)
+
+If you'd rather install Swift on the Pi once — the global-runtime model
+described earlier — instead of bundling per app, here are the methods,
+most-official first. Each was verified on a Raspberry Pi 4 (Debian 12
+"bookworm", `aarch64`) on 2026-06-20 with Swift 6.3.2; the program tested
+was `print("hello from swift on the pi")` compiled and run with `swift`.
+
+Whichever you choose, install the system libraries first (these are also
+the runtime dependencies a Swift binary needs):
+
+```bash
+sudo apt-get install -y \
+  binutils-gold gcc git libcurl4-openssl-dev libedit-dev libicu-dev \
+  libncurses-dev libpython3-dev libsqlite3-dev libxml2-dev pkg-config \
+  tzdata uuid-dev
+```
+
+Once any method below is installed, the dynamic binary from this guide
+runs with **no** bundling — just `~/swift-linux-demo info`, no
+`~/swift-libs`, no `LD_LIBRARY_PATH`.
+
+### Option A — swiftly (recommended) ✅ verified
+
+swiftly is Swift's official toolchain manager — it installs toolchains
+and switches between them. Official guide:
+<https://www.swift.org/install/linux/swiftly>.
+
+```bash
+curl -O https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz
+tar zxf swiftly-$(uname -m).tar.gz
+./swiftly init            # sets up swiftly and installs the latest toolchain
+swift --version           # Swift version 6.3.2 (swift-6.3.2-RELEASE)
+```
+
+`swiftly init` reports any missing system packages, and
+`swiftly install <version>` / `swiftly use <version>` manage multiple
+toolchains.
+
+- **Pros:** official; one command; manages and switches multiple
+  toolchains; easy upgrades; user-local (no `sudo` for the toolchain).
+- **Cons:** ~1.4 GB download; adds a swiftly layer and a `PATH` entry to
+  your shell profile.
+
+### Option B — official tarball (swift.org) ✅ verified
+
+A direct download of the swift.org toolchain with signature
+verification. Official guide:
+<https://www.swift.org/install/linux/tarball>.
+
+```bash
+# 1. download the Debian 12 aarch64 build + signature
+curl -fsSLO https://download.swift.org/swift-6.3.2-release/debian12-aarch64/swift-6.3.2-RELEASE/swift-6.3.2-RELEASE-debian12-aarch64.tar.gz
+curl -fsSLO https://download.swift.org/swift-6.3.2-release/debian12-aarch64/swift-6.3.2-RELEASE/swift-6.3.2-RELEASE-debian12-aarch64.tar.gz.sig
+
+# 2. import the Swift release keys and verify
+curl -fsSL https://swift.org/keys/all-keys.asc | gpg --import -
+gpg --verify swift-6.3.2-RELEASE-debian12-aarch64.tar.gz.sig
+
+# 3. extract and put it on PATH
+tar xzf swift-6.3.2-RELEASE-debian12-aarch64.tar.gz
+export PATH="$PWD/swift-6.3.2-RELEASE-debian12-aarch64/usr/bin:$PATH"
+swift --version
+```
+
+Step 2 should report *Good signature from "Swift 6.x Release Signing
+Key"*; the accompanying "not certified with a trusted signature" warning
+is expected.
+
+- **Pros:** official binaries with signature verification; no extra
+  tooling; you control exactly where it lives.
+- **Cons:** manual `PATH` setup; manual upgrades; you pick the correct
+  distro/arch build yourself.
+
+### Option C — community apt package (`swiftlang`) ⚠️ currently unavailable
+
+The Swift-Arm community apt repository (the `swiftlang` package, i.e.
+`sudo apt install swiftlang`) was historically the easiest route and is
+what this Pi originally shipped with. **As of 2026-06-20 its hosting is
+offline** — `archive.swiftlang.xyz` no longer resolves and the older
+packagecloud repo returns no Release file — so it could not be verified
+and is not recommended. Project background on the Swift forums:
+<https://forums.swift.org/t/new-swift-package-repository-for-ubuntu-debian-linux-distributions/50412>.
+
+- **Pros (when available):** `apt`-managed; integrates with the system; a
+  single `apt install`.
+- **Cons:** community-maintained (not swift.org official); trails official
+  releases; **its repository is currently down.**
+
+> Tip: with a global toolchain installed you can skip cross-compilation
+> entirely and just run `swift build` on the Pi — slower, but no SDK
+> setup on the Mac.
 
 ## Cleanup
 
