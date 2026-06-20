@@ -52,7 +52,7 @@ The DocC chapter [Releases anyone can verify][docs-verify] explains the
 two-attestation model in depth, including what each one *doesn't* prove
 and when to reach for which.
 
-[docs-verify]: https://gestrich.github.io/SwiftLinuxDemo/documentation/swiftlinuxdemocore/03-attestation/
+[docs-verify]: https://gestrich.github.io/SwiftLinuxDemo/documentation/swiftlinuxdemocore/04-attest/
 
 ## Use it
 

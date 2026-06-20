@@ -154,7 +154,7 @@ release-integrity attestation closes the UX gap: as a *consumer*,
 you ask GitHub one question — *"is this the official immutable
 release for v1.2.0?"* — and GitHub answers with a signed receipt.
 
-The next two sections walk through each path. <doc:03-Attestation#End-user-verification>
+The next two sections walk through each path. <doc:04-Attest#End-user-verification>
 ties them together with the two commands you'd run as a downstream
 user.
 
@@ -532,7 +532,7 @@ manuals.
 
 ## See Also
 
-- <doc:04-DocC-On-Pages>
+- <doc:05-Document>
 - The [Sigstore docs][sigstore-docs] — Fulcio, Rekor, Cosign, in
   deeper detail than what's covered here.
 - The [SLSA v1.0 specification][slsa-v1] — the semantic content of a

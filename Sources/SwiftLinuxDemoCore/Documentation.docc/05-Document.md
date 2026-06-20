@@ -84,7 +84,7 @@ permissions:
 ```
 
 `pages: write` is the obvious one. `id-token: write` is there for the
-same reason it was in <doc:03-Attestation>: GitHub uses an OIDC token
+same reason it was in <doc:04-Attest>: GitHub uses an OIDC token
 to verify that the deploy is coming from a workflow run authorized
 to publish to this repo's Pages site. The token doesn't get used for
 artifact signing here, only for *who-can-deploy* authorization.
@@ -110,7 +110,7 @@ have to walk one module.
 
 ## See Also
 
-- <doc:05-Discoveries>
+- <doc:01-Package>
 - [DocC documentation reference][docc] on swift.org.
 - [GitHub Pages and Actions integration][pages-actions].
 

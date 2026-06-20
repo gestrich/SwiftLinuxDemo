@@ -35,7 +35,7 @@ test:
 Two setup steps, then one line that does the actual work. The
 `ubuntu-24.04` runner image ships Swift preinstalled, and pinning
 the image version is also how the workflow holds the Swift toolchain
-version stable (see <doc:02-Building-On-Linux>). The apt step covers
+version stable (see <doc:02-Build>). The apt step covers
 the C dependencies Foundation needs on Linux.
 
 Running on Linux exclusively is a deliberate scope choice for this

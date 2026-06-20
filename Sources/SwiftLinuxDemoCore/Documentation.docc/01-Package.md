@@ -306,7 +306,7 @@ follow which guard solves which problem.
 
 ## See Also
 
-- <doc:02-Building-On-Linux>
+- <doc:02-Build>
 - [SE-0273][se-0273] — the proposal that introduced
   `.when(platforms:)` on target dependencies.
 - [TargetDependencyCondition reference][when-platforms] — the
