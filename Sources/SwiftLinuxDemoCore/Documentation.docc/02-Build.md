@@ -182,7 +182,7 @@ let platformExclusiveCoreDeps: [Target.Dependency] = ["GlibcGreeter"]
 The dependency *references* (`platformExclusiveCoreDeps`) live inside
 the same `#if` block — that's load-bearing. Referencing a manifest-
 gated target's name from an un-gated context fails manifest
-evaluation. See <doc:01-Package> for the literal error.
+evaluation. See <doc:01-Conditional-Compile> for the literal error.
 
 **3. `#if os(...)` or `#if canImport(...)` inside source** — used when
 one source file picks between platform-specific implementations:
@@ -211,10 +211,10 @@ auto-adapts if the named module ever ships on a new platform. Prefer
 `canImport` when the module is the thing you care about.
 
 The three patterns *compose* — they don't substitute for each other.
-<doc:01-Package> empirically demonstrates the distinct failure mode
+<doc:01-Conditional-Compile> empirically demonstrates the distinct failure mode
 each one prevents on the Linux runner.
 
 ## See Also
 
 - <doc:04-Attest>
-- <doc:01-Package>
+- <doc:01-Conditional-Compile>

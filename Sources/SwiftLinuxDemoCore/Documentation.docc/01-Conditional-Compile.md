@@ -1,4 +1,4 @@
-# Package
+# Conditional Compile
 
 ## The empirical question
 
