@@ -171,6 +171,40 @@ Mac, a Linux server, a Raspberry Pi. Everything above eventually executes
 here, and Swift reaches it only through all the layers above; you never
 address it directly.
 
+## What can ship with your binary
+
+A natural question once you see the stack: of all these pieces, which can
+you put *in* (or *beside*) your executable, and which must already exist
+on the machine you run on?
+
+The dividing line is the **user/kernel boundary** — the green bracket in
+the diagram. Everything in user space can travel with your app;
+everything from the kernel down belongs to the target.
+
+| Piece | Ships with your app? | How |
+|---|---|---|
+| Your code | always | compiled into the binary |
+| Swift standard library **+ runtime** | yes | the runtime isn't a separate file — it lives in `libswiftCore` with the standard library |
+| Foundation | yes | additional libraries (`libFoundation`, …) |
+| C library (libc) | only with **musl** | glibc can't be cleanly static-linked, so on glibc it stays dynamic and comes from the target |
+| Kernel · syscalls · hardware | never | provided by the machine; reached across the boundaries |
+
+So the three "Swift library" components — standard library, runtime, and
+Foundation — are all fully shippable, and in practice they're the same
+bundle of `.so` files. You can either bake them into the binary
+(`--static-swift-stdlib`) or ship them beside it. The only awkward piece
+is the **C library**: bundleable with musl, system-provided with glibc.
+
+That's exactly why the cross-compile chapter has three deployment modes
+(<doc:06-Cross-Compile>):
+
+- **Fully static (musl)** — bundle *everything*, libc included → one
+  self-contained file, nothing required on the target.
+- **Static stdlib (glibc)** — bake in the Swift libraries, leave libc
+  dynamic (from the target).
+- **Bundled-runtime (glibc)** — ship the Swift `.so`s beside the binary,
+  use the target's libc.
+
 ## The stack vs. the axes of change
 
 The stack above is *where code runs*. It's a different question from
