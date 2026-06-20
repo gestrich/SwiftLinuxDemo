@@ -1,4 +1,4 @@
-# Conditional Compile
+# Conditional Compilation
 
 ## The empirical question
 

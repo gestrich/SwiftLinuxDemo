@@ -110,7 +110,7 @@ have to walk one module.
 
 ## See Also
 
-- <doc:01-Conditional-Compile>
+- <doc:01-Conditional-Compilation>
 - [DocC documentation reference][docc] on swift.org.
 - [GitHub Pages and Actions integration][pages-actions].
 

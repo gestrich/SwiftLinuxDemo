@@ -59,7 +59,7 @@ end user running the verification command:
 
 ## Topics
 
-- <doc:01-Conditional-Compile>
+- <doc:01-Conditional-Compilation>
 - <doc:02-Build>
 - <doc:03-Test>
 - <doc:04-Attest>
