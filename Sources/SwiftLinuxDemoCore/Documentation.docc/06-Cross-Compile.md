@@ -305,6 +305,14 @@ Once any method below is installed, the dynamic binary from this guide
 runs with **no** bundling — just `~/swift-linux-demo info`, no
 `~/swift-libs`, no `LD_LIBRARY_PATH`.
 
+At a glance:
+
+| Method | Official? | Verified | Download | Manages versions | Notes |
+|---|---|---|---|---|---|
+| **swiftly** | ✅ swift.org | ✅ | ~1.4 GB | yes | user-local; adds a `PATH`/profile entry |
+| **Tarball** | ✅ swift.org | ✅ | ~1 GB | manual | GPG-verified; manual `PATH` |
+| **Community apt** (`swiftlang`) | community | ❌ | — | apt | repository offline (2026-06-20) |
+
 ### Option A — swiftly (recommended) ✅ verified
 
 swiftly is Swift's official toolchain manager — it installs toolchains
