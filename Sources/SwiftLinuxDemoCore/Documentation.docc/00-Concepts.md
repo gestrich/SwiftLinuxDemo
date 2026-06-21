@@ -5,24 +5,6 @@ hardware — and how the Swift ecosystem adapts at each step.
 
 ![The system stack as three zones — user space, kernel space, and hardware — with the system call ABI and the instruction set drawn as the interface boundaries between them.](concepts-stack.svg)
 
-The stack has two *kinds* of thing, and keeping them apart is what makes
-the picture accurate:
-
-- **Components** (the solid bars) — actual bodies of code or hardware:
-  your code, the Swift libraries, the runtime, the C library, the kernel,
-  the CPU. These are grouped into three **zones**: user space, kernel
-  space, and hardware.
-- **Boundaries** (the dashed edges) — *interfaces*, not components. The
-  **system call ABI** is the doorway from user space into the kernel; the
-  **instruction set** is the contract between software and the CPU. Code
-  doesn't live *in* a boundary; it crosses one.
-
-A request travels *down* through the components and *across* the
-boundaries; the result comes back up. Some of the adapting happens at
-**build time** (conditional compilation, linking, cross-compilation) and
-some at **run time** (calling down through the runtime and syscalls into
-the kernel) — the difference is called out where it matters.
-
 The how-to chapters — <doc:01-Conditional-Compilation>, <doc:02-Build>,
 <doc:06-Cross-Compile> — apply these ideas in practice.
 
