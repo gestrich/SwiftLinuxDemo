@@ -40,9 +40,22 @@ module exists, and `.when(platforms:)` decides whether a package
 dependency is even linked. These guards are the subject of
 <doc:01-Conditional-Compilation>.
 
-### Swift standard library + Foundation
+### Foundation
 
-The **standard library** is the part of Swift that is always present and
+**Foundation** is the optional, higher-level library — `Date`, `URL`,
+`FileManager`, `JSONEncoder`, `Process` — exposing one public API with
+platform-specific implementations underneath, so `FileManager.default`
+works the same everywhere while doing different things below. It sits on
+top of the standard library, so it's drawn above it. On Apple platforms
+it's the system **`Foundation.framework`**; on Linux it's
+swift-corelibs-foundation, shipped as **`libFoundation`**,
+`libFoundationEssentials`, `libFoundationInternationalization`, and
+`lib_FoundationICU`, with networking split into a separate
+**`libFoundationNetworking`**.
+
+### Swift standard library
+
+The standard library is the part of Swift that is always present and
 fully portable: `Array`, `String`, `Optional`, `Dictionary`, `print()`,
 and the language's core protocols and algorithms. You can write Swift
 with nothing else imported and it behaves identically on every platform —
@@ -57,28 +70,21 @@ exposes the platform's C library to Swift: **`libswiftGlibc`** on Linux,
 `/usr/lib/swift`; on Linux they come from the toolchain (or are bundled
 with your app).
 
-**Foundation** is the optional, higher-level library — `Date`, `URL`,
-`FileManager`, `JSONEncoder`, `Process` — exposing one public API with
-platform-specific implementations underneath, so `FileManager.default`
-works the same everywhere while doing different things below. On Apple
-platforms it's the system **`Foundation.framework`**; on Linux it's
-swift-corelibs-foundation, shipped as **`libFoundation`**,
-`libFoundationEssentials`, `libFoundationInternationalization`, and
-`lib_FoundationICU`, with networking split into a separate
-**`libFoundationNetworking`**.
-
 ### Swift runtime
 
 **What it is.** The always-present machinery beneath the libraries:
 automatic reference counting, generics and type metadata, protocol
 dispatch, error handling. It exists even without Foundation.
 
-**Where it lives.** There is no standalone "runtime" library to link —
-the runtime is compiled into **`libswiftCore`** alongside the standard
-library, which is why those two always ship together. The only dedicated
-runtime-support libraries are small: `libdispatch` and `libswiftDispatch`
-(Grand Central Dispatch), `libBlocksRuntime` (the Blocks runtime), and
-`libswiftRemoteMirror` (reflection, used by debuggers).
+**Is it part of the standard library?** Not conceptually — the runtime is
+a *lower* layer: the (mostly C++) support machinery the standard library
+itself is built on. But there is no standalone runtime library to link.
+It's compiled into **`libswiftCore`** together with the standard library,
+so the two are physically one file even though they're two layers — which
+is why people conflate them. The only dedicated runtime-support libraries
+are small: `libdispatch` and `libswiftDispatch` (Grand Central Dispatch),
+`libBlocksRuntime` (the Blocks runtime), and `libswiftRemoteMirror`
+(reflection, used by debuggers).
 
 **What varies — how it's delivered.** The same runtime everywhere, but it
 must be present to run: linked statically into your binary, installed
