@@ -42,18 +42,30 @@ dependency is even linked. These guards are the subject of
 
 ### Swift standard library + Foundation
 
-**What it is.** The **standard library** is always present and fully
-portable — `Array`, `String`, `Optional`, `print()`. **Foundation** is
-optional and higher-level — `Date`, `URL`, `FileManager`, `JSONEncoder`.
+The **standard library** is the part of Swift that is always present and
+fully portable: `Array`, `String`, `Optional`, `Dictionary`, `print()`,
+and the language's core protocols and algorithms. You can write Swift
+with nothing else imported and it behaves identically on every platform —
+this is the layer that travels for free.
 
-**What varies.** The standard library behaves identically everywhere.
-Foundation does not have one implementation: on Apple platforms it's the
-system framework; on Linux it's swift-corelibs-foundation, and some
-networking types live in a separate `FoundationNetworking` module.
+It ships as **`libswiftCore`** (`.dylib` on macOS, `.so` on Linux), which
+also contains the Swift runtime (next section). A few features arrive as
+separate companion libraries — `libswift_Concurrency`,
+`libswift_StringProcessing`, `libswift_RegexParser` — and a thin overlay
+exposes the platform's C library to Swift: **`libswiftGlibc`** on Linux,
+**`libswiftDarwin`** on macOS. On Apple platforms these live in the OS at
+`/usr/lib/swift`; on Linux they come from the toolchain (or are bundled
+with your app).
 
-**How Swift adapts.** Foundation is one public API with platform-specific
-implementations underneath. You write `FileManager.default`; Foundation
-decides how to carry it out. Your code targets the API and stays the same.
+**Foundation** is the optional, higher-level library — `Date`, `URL`,
+`FileManager`, `JSONEncoder`, `Process` — exposing one public API with
+platform-specific implementations underneath, so `FileManager.default`
+works the same everywhere while doing different things below. On Apple
+platforms it's the system **`Foundation.framework`**; on Linux it's
+swift-corelibs-foundation, shipped as **`libFoundation`**,
+`libFoundationEssentials`, `libFoundationInternationalization`, and
+`lib_FoundationICU`, with networking split into a separate
+**`libFoundationNetworking`**.
 
 ### Swift runtime
 
@@ -61,10 +73,16 @@ decides how to carry it out. Your code targets the API and stays the same.
 automatic reference counting, generics and type metadata, protocol
 dispatch, error handling. It exists even without Foundation.
 
-**What varies.** Same concept everywhere, but it's a set of libraries
-(`libswiftCore` and friends) that must be present to run. What differs is
-**how it's delivered**: linked statically into your binary, installed
-system-wide, or bundled as `.so` files beside the executable —
+**Where it lives.** There is no standalone "runtime" library to link —
+the runtime is compiled into **`libswiftCore`** alongside the standard
+library, which is why those two always ship together. The only dedicated
+runtime-support libraries are small: `libdispatch` and `libswiftDispatch`
+(Grand Central Dispatch), `libBlocksRuntime` (the Blocks runtime), and
+`libswiftRemoteMirror` (reflection, used by debuggers).
+
+**What varies — how it's delivered.** The same runtime everywhere, but it
+must be present to run: linked statically into your binary, installed
+system-wide, or bundled as `.so` files beside the executable.
 <doc:06-Cross-Compile> shows each choice on a Raspberry Pi.
 
 ### System libraries (the C library)
