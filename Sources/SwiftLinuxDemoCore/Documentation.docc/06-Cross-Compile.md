@@ -6,7 +6,7 @@ Raspberry Pi (aarch64 Linux) that has **no Swift installed**.
 Everything is compiled on the Mac; the Pi only receives a binary plus
 the Swift runtime libraries. This is the cross-compilation idea from
 <doc:00-Concepts> applied end to end, and a companion to the native
-Linux build in <doc:02-Build>.
+Linux build in <doc:03-GitHub-Action-Pipeline>.
 
 Target hardware here is a **Raspberry Pi 4** (Cortex-A72, `aarch64`)
 running **64-bit Raspberry Pi OS / Debian 12 "bookworm"**. Confirm with
@@ -123,7 +123,7 @@ Two rules that bite if ignored:
   When SwiftPM evaluates the manifest on macOS it picks `AppKitGreeter`
   and omits `GlibcGreeter`. You must force the Linux branch before
   cross-compiling (see step 3) and revert it after. This is the same
-  manifest-guard story told in <doc:01-Conditional-Compilation>, seen
+  manifest-guard story told in <doc:02-Your-First-Linux-Build>, seen
   from the cross-compilation side.
 
 Substitute your own version for `6.3.2` throughout if your toolchain

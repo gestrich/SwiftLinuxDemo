@@ -1,6 +1,270 @@
-# Attest
+# GitHub Action Pipeline
 
-## The supply-chain trust problem
+## Motivation
+
+### CI / CD flow
+
+`release.yml`'s first job is `test`. The `build-linux` job declares
+`needs: test`, so if a test fails on the tagged commit, no binary is
+ever compiled, no attestation is ever issued, and no GitHub Release
+is created. The tag stays in the repo, but the failed workflow run is
+plainly visible in the Actions tab.
+
+This ordering matters. It would be tempting to run the build in
+parallel with the tests — they're independent steps — but doing so
+opens a window where a half-broken commit produces a signed, attested,
+published binary. Putting the test job at the front closes that
+window at the cost of a few extra minutes per release.
+
+`ci.yml` runs essentially the same job — `swift build`, `swift test`,
+plus a `swift build -c release --static-swift-stdlib` smoke test — on
+every push and pull request, not just on tags. Two jobs, separate
+workflows, same toolchain pin.
+
+The split is intentional:
+
+- `release.yml` is *gated* by tests. A red test breaks a release.
+- `ci.yml` is *predictive*. A red test on `main` warns you before you
+  tag, so a tag is never the first time you find out the suite is
+  broken.
+
+Without the predictive layer, the failure mode is: tag a release,
+release.yml fails on the test job, you have to delete the tag, fix,
+re-tag. With CI in place, you would have already seen the same test
+fail on the push that introduced the bug — which is much cheaper to
+respond to.
+
+### The test job
+
+```yaml
+test:
+  name: Test
+  runs-on: ubuntu-24.04
+  timeout-minutes: 30
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install system dependencies
+      run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+
+    - name: Test
+      run: swift test
+```
+
+Two setup steps, then one line that does the actual work. The
+`ubuntu-24.04` runner image ships Swift preinstalled, and pinning
+the image version is also how the workflow holds the Swift toolchain
+version stable (see the Packaging section below). The apt step covers
+the C dependencies Foundation needs on Linux.
+
+Running on Linux exclusively is a deliberate scope choice for this
+repo, but it has a real side effect: every test in the suite has to
+either work on Linux or be guarded by a `#if os(...)` source-level
+condition. The `swift-testing` framework makes the latter
+straightforward — see `Tests/SwiftLinuxDemoCoreTests/PlatformReportTests.swift`
+for an example.
+
+The test suite uses [swift-testing][swift-testing] (`import Testing`)
+rather than XCTest. Eight tests across three suites cover the
+library's public surface:
+
+- `Greeter` — pure string greeting, plus whitespace handling.
+- `Hasher` — SHA-256 against known vectors. Confirms that swift-crypto
+  on Linux and CryptoKit on macOS produce identical output.
+- `PlatformInfo` — verifies that `current()` produces a non-empty OS
+  and architecture string, and that the rendered report includes each
+  field.
+- `PlatformReport` — confirms the source-level `#if os(...)` guard
+  routes to the right platform-exclusive helper (`AppKitGreeter` on
+  macOS, `GlibcGreeter` on Linux).
+
+[swift-testing]: https://swiftpackageindex.com/swiftlang/swift-testing/main/documentation/testing
+
+### The Linux machine is often not local
+
+The CI and release jobs run on GitHub's `ubuntu-24.04` runners. That
+is where the Linux build and test happen, because most contributors
+develop on macOS and don't have a Linux box in front of them. The
+runner image already ships Swift, so the Linux build environment is
+the runner rather than a developer's laptop.
+
+> **TODO:** expand on why the Linux build environment is usually
+> remote/CI rather than a local Linux box.
+
+### A Swift app that runs the CI actions (e.g. on pull request)
+
+> **TODO:** describe a Swift app that performs CI actions (e.g.
+> responding to pull requests). No source material exists yet — do not
+> invent.
+
+## Packaging
+
+Swift on Linux behaves differently from Swift on macOS in a few small
+but important ways, and a CI workflow that doesn't account for them
+either won't build at all or will produce a binary that fails to run
+on anyone else's machine.
+
+The Linux-specific concerns boil down to three: a build flag that
+bakes the Swift runtime into the binary, a couple of system packages
+that have to be installed before the Swift compiler can finish, and a
+pin on the Swift toolchain so a runner image upgrade doesn't silently
+change which compiler built the release. Each one shows up in a
+matching line of YAML inside `.github/workflows/release.yml`.
+
+For the conditional-compilation patterns that let one package build on
+both platforms, see <doc:02-Your-First-Linux-Build>.
+
+### Linking
+
+#### The build command
+
+```yaml
+- name: Build
+  run: swift build -c release --product swift-linux-demo --static-swift-stdlib
+```
+
+Three flags, each with a specific job:
+
+- [`-c release`][build-config-docs] — selects the *release* build
+  configuration. Without it, `swift build` produces a debug binary
+  that's slower and bigger. Documented in
+  *[Using build configurations][build-config-docs]* on swift.org.
+- [`--product swift-linux-demo`][products-docs] — names a single
+  executable product from `Package.swift` to build. Without it,
+  `swift build` builds every target in the package; with it, only
+  the CLI artifact we actually ship gets compiled.
+- [`--static-swift-stdlib`][static-stdlib] — statically links the
+  Swift runtime libraries into the binary. The next section is
+  entirely about why this one matters on Linux.
+
+[build-config-docs]: https://docs.swift.org/swiftpm/documentation/packagemanagerdocs/usingbuildconfigurations/
+[products-docs]: https://docs.swift.org/package-manager/PackageDescription/PackageDescription.html#Product
+[static-stdlib]: https://www.swift.org/documentation/articles/static-linux-getting-started.html
+
+#### Core library + Foundation: why `--static-swift-stdlib`?
+
+On macOS and iOS, the Swift runtime is part of the operating system.
+The same dynamic libraries (`libswiftCore.dylib`, `libFoundation.dylib`,
+and the rest) live in `/usr/lib/swift` on every Apple device, so any
+Swift binary you compile can rely on them being present at runtime.
+This is invisible — you never have to think about it.
+
+Linux works differently. There is no system-shipped Swift runtime,
+because Swift isn't part of any Linux distribution's base install.
+The Swift runtime libraries only exist on a Linux machine where
+someone explicitly installed a Swift toolchain. So a dynamically-
+linked Swift binary built on Linux runs fine on the build machine
+(which has the toolchain), and dies with `error while loading shared
+libraries: libswiftCore.so` on any stock Ubuntu, Debian, or Alpine
+box that doesn't.
+
+`--static-swift-stdlib` solves this by baking the Swift runtime
+libraries into the binary itself. The output is bigger (this repo's
+`swift-linux-demo` ends up around ~30 MB tarballed) but it runs on
+essentially any glibc-based Linux host with no prerequisite install
+— which is exactly what a downloadable CLI needs.
+
+#### Packaging Swift libraries vs a global install
+
+The macOS build of any Swift CLI doesn't need this flag, because
+macOS does ship the runtime. This repo doesn't produce a macOS
+release, so the consideration only matters here for context.
+
+The choice is between two models: package the Swift libraries *into*
+the binary (the static-stdlib approach above), or rely on a global
+Swift install being present on the host. macOS effectively uses the
+global-install model for free, because the runtime is part of the OS.
+Linux has no such global install by default, so a redistributable CLI
+has to carry the runtime with it.
+
+For the deeper background, see *[Getting Started with the Static
+Linux SDK][static-stdlib]* on swift.org, which also covers a stricter
+mode (the Static Linux SDK) that statically links the C library
+itself so the resulting binary doesn't even need glibc.
+
+### Resources
+
+#### Why apt-install `libcurl4-openssl-dev` and `libxml2-dev`?
+
+This is the first surprise for anyone coming from macOS or iOS
+development: on Apple platforms, "system frameworks" like
+`Foundation`, `URLSession`, and `XMLParser` are bundled with the OS
+itself. You import them and they're just *there*. You never install
+a system library to make `URLSession` work — Apple ships everything
+through the SDK and the runtime.
+
+Linux is closer to the metal. There's no concept of a vendor-bundled
+SDK that ships every dependency at once. Each "system framework"
+you'd take for granted on macOS is implemented in terms of standard
+open-source C libraries that may or may not be installed, and that
+your build needs to be able to find — both at compile time (for the
+headers) and at runtime (for the `.so` files).
+
+[swift-corelibs-foundation][corelibs] is the open-source
+reimplementation of Apple's Foundation that ships with Swift on
+Linux. It exposes the same `Foundation.URLSession` and
+`Foundation.XMLParser` API surface you're used to, but instead of
+calling Apple's `CFNetwork` and `libxml2.dylib` (which only exist on
+macOS), it delegates to two specific C libraries that have been
+shipping on every Linux distribution for decades:
+
+- `URLSession` on Linux is backed by **libcurl** (the same library
+  behind the `curl` CLI).
+- `FoundationXML` on Linux is backed by **libxml2** (the GNOME
+  project's XML parser).
+
+This repo's `Fetcher.swift` calls `URLSession.shared.data(for:)`.
+On Linux that pulls in Foundation's libcurl-backed URLSession, which
+means the build needs the curl C *headers* (`curl.h`) — not just the
+runtime `.so`. That's what the `-dev` suffix is for:
+`libcurl4-openssl-dev` is the Debian/Ubuntu package that includes
+the development headers Swift's C-interop shims
+(`_CFURLSessionInterface`) build against.
+
+The `ubuntu-latest` runner image ships the runtime libs but not the
+`-dev` headers, so the apt install line is exactly that gap-filler:
+
+```yaml
+- name: Install system dependencies
+  run: sudo apt-get install -y libcurl4-openssl-dev libxml2-dev
+```
+
+If you ever add a Foundation feature that pulls in a third C
+dependency (e.g. `FoundationCalendar` brings in `tzdata`), the
+symptom is a confusing C-interop error at build time — usually
+along the lines of `module 'CIcu' is not available`. The fix is
+almost always to install one more `-dev` package via the same
+mechanism.
+
+[corelibs]: https://github.com/swiftlang/swift-corelibs-foundation
+
+#### Pinning the Swift toolchain via the Ubuntu image
+
+The `runs-on:` line in this repo's workflows is `ubuntu-24.04`, not
+`ubuntu-latest`:
+
+```yaml
+build-linux:
+  runs-on: ubuntu-24.04
+```
+
+That pin is doing more work than it looks. The Ubuntu runner image
+ships Swift preinstalled (`ubuntu-24.04` currently ships Swift
+6.3.1), so pinning the image version is also implicitly pinning the
+Swift toolchain version. The build never has to install a separate
+toolchain — it just uses what the image already has on `PATH`.
+
+`ubuntu-latest` would also work, but it floats: GitHub remaps it to a
+newer Ubuntu (and a newer Swift) every few months, so a release
+tagged today might compile against a different Swift than the same
+commit tagged next quarter. Pinning the image freezes the entire
+build environment — OS version, Swift version, system libraries —
+until you intentionally bump the pin in a commit.
+
+## Security
+
+### Provenance
 
 Every binary on every release page on the internet has the same
 problem: you can't see what's inside. Even when the source code is
@@ -17,7 +281,7 @@ can verify back to a specific commit and workflow run — no shared
 secret, no maintainer-managed signing key, no trust placed in the
 CDN that served the bytes.
 
-## Vocabulary
+#### Vocabulary
 
 Three words get used interchangeably in casual writing. The
 distinctions are real, and especially matter when reading
@@ -57,7 +321,7 @@ The one-line mental model:
 > Attestation proves *how* a binary was produced; provenance is the
 > overall history that makes that proof meaningful.
 
-## Four projects make this work
+#### Four projects make this work
 
 The vocabulary above is implemented by a small handful of cooperating
 open-source projects. Each one solves a piece of the problem the
@@ -112,7 +376,7 @@ output (`"_type": "https://in-toto.io/Statement/v1"`).
 [slsa-spec]: https://github.com/slsa-framework/slsa
 [in-toto]: https://in-toto.io/
 
-## Why transparency logs matter
+#### Why transparency logs matter
 
 Without Rekor, the operational posture would be *"trust us, we signed
 this."* With Rekor, anyone — not just the original signer or the
@@ -127,7 +391,7 @@ The motivation is to *reduce centralized trust.* Even if a single
 party in the chain were compromised, the public, externally-mirrored
 log entries make silent retroactive forgery very hard.
 
-## Two attestations, two questions
+#### Two attestations, two questions
 
 A release published by this repo carries **two independent
 attestations** — they're built on the same cryptographic substrate
@@ -154,14 +418,11 @@ release-integrity attestation closes the UX gap: as a *consumer*,
 you ask GitHub one question — *"is this the official immutable
 release for v1.2.0?"* — and GitHub answers with a signed receipt.
 
-The next two sections walk through each path. <doc:04-Attest#End-user-verification>
-ties them together with the two commands you'd run as a downstream
-user.
+The next two sections walk through each path. The two commands you'd
+run as a downstream user are tied together below in *End-user
+verification*.
 
-## Path A — the build-provenance attestation
-
-With the vocabulary in hand, the actual workflow step is surprisingly
-small:
+#### Path A — the build-provenance attestation
 
 With the vocabulary in hand, the actual workflow step is surprisingly
 small:
@@ -193,7 +454,7 @@ Four lines, six things happening behind the scenes:
    proof + statement) with GitHub via the Attestations REST API so
    that `gh attestation verify` can find it later.
 
-## Permissions — the three-scope ritual
+#### Permissions — the three-scope ritual
 
 Three [GitHub Actions permission scopes][actions-permissions] have to
 be granted at the workflow or job level for the step above to work:
@@ -224,7 +485,7 @@ ends up silently inheriting more than it should.
 
 [actions-permissions]: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token
 
-## Why "keyless" — the OIDC trick in one paragraph
+#### Why "keyless" — the OIDC trick in one paragraph
 
 Traditional code signing requires a long-lived private key that you
 keep secret forever. Sigstore replaces that with three short-lived
@@ -245,7 +506,7 @@ GitHub's OIDC issuer is the trust anchor.
 Operationally this is huge: there is no key to rotate, no HSM to
 fund, no secret to lose.
 
-## Path B — the release-integrity attestation
+#### Path B — the release-integrity attestation
 
 GitHub generates a *second* attestation whenever an
 [immutable release][immutable-docs] is published. There's no workflow
@@ -254,7 +515,7 @@ toggle.
 
 [immutable-docs]: https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases
 
-### Enabling immutable releases
+##### Enabling immutable releases
 
 Either through the UI (`Settings → General → Releases → Enable
 release immutability`) or in one shot via the REST API:
@@ -289,7 +550,7 @@ gh release view v1.2.0 --repo gestrich/SwiftLinuxDemo --json isImmutable
 
 [purl]: https://github.com/package-url/purl-spec
 
-### Verifying with `gh release verify` and `verify-asset`
+##### Verifying with `gh release verify` and `verify-asset`
 
 These two commands are the consumer-facing half of the
 release-integrity story. Both ship with [GitHub CLI][gh-cli] (the
@@ -343,7 +604,7 @@ $ echo $?
 
 — a clear refusal, an explicit hash mismatch, and a non-zero exit code.
 
-### How the release attestation differs from build provenance
+##### How the release attestation differs from build provenance
 
 The two attestations look superficially similar (both are in-toto
 statements signed via Sigstore), but their *trust roots* and
@@ -372,7 +633,7 @@ proves:
 
 [slsa-v1]: https://slsa.dev/spec/v1.0/
 
-## What attestation does NOT solve
+#### What attestation does NOT solve
 
 This is the section most introductions skip, and it's the most
 important one for setting expectations.
@@ -406,7 +667,7 @@ The trust boundary moves from *"I trust whoever uploaded this file"*
 to *"I trust this build identity and workflow definition."* That's a
 meaningful shift even though it isn't *"this software is safe."*
 
-## Hashes vs attestations
+#### Hashes vs attestations
 
 A checksum proves: *this file matches this checksum.* But then — who
 published the checksum? Same trust problem, one layer up.
@@ -423,7 +684,7 @@ An attestation proves:
 Much richer trust model, and the chain terminates at a verifiable
 Rekor inclusion proof rather than at a tarball on someone's blog.
 
-## Why commit pinning matters
+#### Why commit pinning matters
 
 Tags are conventionally immutable but not *technically* immutable
 unless you've enabled the immutable-releases setting described above.
@@ -462,14 +723,14 @@ keep the build-provenance verify alongside it.
 Verification is only as strong as the policy you actually enforce on
 the statement's claims.
 
-## End-user verification — which command, when
+#### End-user verification — which command, when
 
 Once you understand the two attestation paths, the practical question
 for a downstream user is *which verify command do I run?* The honest
 answer is *"probably both, in a script,"* because they answer
 different questions.
 
-### The two-command verify
+##### The two-command verify
 
 ```bash
 # (1) Did this file come from the official immutable release for this tag?
@@ -512,7 +773,7 @@ gh attestation verify swift-linux-demo-linux-x86_64.tar.gz \
   --signer-workflow gestrich/SwiftLinuxDemo/.github/workflows/release.yml
 ```
 
-### A note on silent success
+##### A note on silent success
 
 `gh attestation verify` prints nothing on success by default — only
 failures get loud. Add `--format json` to see the signed statement
@@ -530,13 +791,128 @@ manuals.
 [gh-attest]: https://cli.github.com/manual/gh_attestation
 [gh-release]: https://cli.github.com/manual/gh_release
 
+## Publishing the documentation
+
+### Why publish documentation as a real website
+
+If you've shipped a Swift library before but always sent users to a
+README on GitHub, this is the upgrade path: rendered documentation
+with full symbol pages, code examples, and full-text search — hosted
+on a free URL and rebuilt automatically on every push to `main`.
+
+[DocC][docc] is Apple's documentation compiler; [GitHub Pages][pages]
+is GitHub's static-site host. The two fit together cleanly with a
+small workflow file plus three flags on the build command and one
+extra permission scope on the deploy step.
+
+[docc]: https://www.swift.org/documentation/docc/
+[pages]: https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages
+
+### What DocC produces
+
+DocC is Apple's documentation compiler. Pointed at a Swift target, it
+extracts the public API surface, renders any Markdown articles
+authored alongside the source (the `Documentation.docc` folder), and
+produces a single browsable archive — either a `.doccarchive` bundle
+for use inside Xcode, or a tree of static HTML when given the right
+flags.
+
+The static-HTML mode is what we want. Every page is a regular file on
+disk, and any plain HTTP server can serve them; no Apple-specific
+"DocC server" is required.
+
+### The build step
+
+`.github/workflows/docs.yml` runs on every push to `main`. The build
+step is one command:
+
+```bash
+swift package \
+  --allow-writing-to-directory ./_site \
+  generate-documentation \
+  --target SwiftLinuxDemoCore \
+  --transform-for-static-hosting \
+  --hosting-base-path SwiftLinuxDemo \
+  --output-path ./_site
+```
+
+The three DocC-specific flags each do one job:
+
+- `--target SwiftLinuxDemoCore` — which target's docs to build. The
+  CLI target (`SwiftLinuxDemo`) is intentionally thin and has no DocC
+  catalog of its own; all the prose lives in the library, where the
+  public API surface also lives.
+- `--transform-for-static-hosting` — rewrites the generated HTML to
+  use relative paths and an `index.html` at each route, so any static
+  host (not just Apple's tooling) can serve it.
+- `--hosting-base-path SwiftLinuxDemo` — the repository name. GitHub
+  Pages serves project sites at `https://<owner>.github.io/<repo>/`,
+  so every internal link needs `/SwiftLinuxDemo/` as a path prefix.
+
+The `swift package generate-documentation` invocation comes from
+[swift-docc-plugin][docc-plugin], a SwiftPM plugin you add to
+`Package.swift` as a dependency. Once it's there, the command becomes
+available as a package plugin without further setup.
+
+[docc-plugin]: https://github.com/swiftlang/swift-docc-plugin
+
+### The deploy step
+
+GitHub's official Pages actions handle the upload and deploy:
+
+```yaml
+- uses: actions/upload-pages-artifact@v3
+  with:
+    path: _site
+- uses: actions/deploy-pages@v4
+```
+
+Two actions, in order: package the `_site` folder as a Pages
+artifact, then deploy it. The deploy job needs:
+
+```yaml
+permissions:
+  pages: write
+  id-token: write
+```
+
+`pages: write` is the obvious one. `id-token: write` is there for the
+same reason it was in the Security section above: GitHub uses an OIDC
+token to verify that the deploy is coming from a workflow run
+authorized to publish to this repo's Pages site. The token doesn't
+get used for artifact signing here, only for *who-can-deploy*
+authorization.
+
+And the repository itself needs Pages enabled with the *GitHub
+Actions* build source. Either through the UI
+(`Settings → Pages → Source: GitHub Actions`) or via the API in one
+shot:
+
+```bash
+gh api -X POST /repos/gestrich/SwiftLinuxDemo/pages -f build_type=workflow
+```
+
+### Why a separate target for documentation?
+
+DocC builds documentation for *one* target at a time. Splitting the
+package into a thin executable (`SwiftLinuxDemo`) and a library
+(`SwiftLinuxDemoCore`) means the documented surface lives in the
+library, and the CLI stays as a small `ArgumentParser` shim that
+calls into it. That split makes the executable easier to test, easier
+to reuse from other code, and easier to document — DocC will only
+have to walk one module.
+
 ## See Also
 
-- <doc:05-Document>
+- <doc:02-Your-First-Linux-Build>
+- <doc:00-Concepts>
+- <doc:06-Cross-Compile>
 - The [Sigstore docs][sigstore-docs] — Fulcio, Rekor, Cosign, in
   deeper detail than what's covered here.
 - The [SLSA v1.0 specification][slsa-v1] — the semantic content of a
   provenance statement.
+- [DocC documentation reference][docc] on swift.org.
+- [GitHub Pages and Actions integration][pages-actions].
 
 [sigstore-docs]: https://docs.sigstore.dev/
-[slsa-v1]: https://slsa.dev/spec/v1.0/
+[pages-actions]: https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow

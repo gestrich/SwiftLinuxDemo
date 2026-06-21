@@ -1,6 +1,60 @@
-# Conditional Compilation
+# Your First Linux Build
 
-## The empirical question
+## Components
+
+The repo is a small Swift package whose pieces each exercise one
+cross-platform concern. The sections below describe the parts and what
+each one is for.
+
+### A macOS UI (SwiftUI)
+
+The repo's macOS-only UI component is `AppKitGreeter` (in
+`Sources/AppKitGreeter/`). It `import`s AppKit — a system framework that
+ships with macOS and doesn't exist on Linux — and exposes a
+`runtimeReport()` that reads `NSScreen.screens.count`. It exists to
+demonstrate the macOS-only-framework pattern: the target is declared in
+`Package.swift` only under `#if os(macOS)`, so the Linux build never
+tries to compile it.
+
+> **TODO:** the outline calls for a SwiftUI example; the repo currently demonstrates the macOS-only-framework pattern via AppKitGreeter (AppKit). Add a SwiftUI example or adjust the outline.
+
+### A CLI (Swift Argument Parser)
+
+`swift-linux-demo` (in `Sources/SwiftLinuxDemo/`) is the executable
+product the package ships. It's built with
+[swift-argument-parser][swift-argument-parser] and defines four
+subcommands:
+
+- `greet` — prints a greeting via `Greeter`.
+- `hash` — prints the SHA-256 hex of its input (cross-platform via
+  swift-crypto on Linux).
+- `info` — prints runtime platform info (os, arch, Swift version); this
+  is the default subcommand.
+- `fetch` — issues a HEAD request against a URL and prints the HTTP
+  status code, using `Fetcher`.
+
+[swift-argument-parser]: https://github.com/apple/swift-argument-parser
+
+### Images
+
+> **TODO:** add the "Images" component. It's unclear what this refers to (bundled image resources? container images?). Needs source info — do not invent.
+
+### A networking library
+
+`Fetcher` (in `Sources/SwiftLinuxDemoCore/`) issues a HEAD request and
+returns the HTTP status code. It uses Foundation's `URLSession`; on
+Linux that API is backed by libcurl. The build-time dependency this
+implies (the libcurl development headers installed via apt) is covered
+in <doc:03-GitHub-Action-Pipeline>.
+
+### Documentation
+
+The project ships DocC documentation — this site. Publishing it is
+covered in <doc:03-GitHub-Action-Pipeline>.
+
+## Conditional Compilation
+
+### The empirical question
 
 Cross-platform Swift packages quickly accumulate conditional code:
 [`#if os(macOS)`][lang-conditional] blocks inside `Package.swift`,
@@ -20,7 +74,7 @@ see when it isn't there.
 [lang-canimport]: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/statements/#Conditional-Compilation-Block
 [when-platforms]: https://docs.swift.org/swiftpm/documentation/packagedescription/targetdependencycondition/
 
-## Method
+### Method
 
 `.github/workflows/experiments.yml` is a manually-triggered workflow with
 one job per experiment. Each job:
@@ -37,7 +91,7 @@ To re-run them yourself: `gh workflow run experiments.yml --repo
 gestrich/SwiftLinuxDemo`. Each `Discoveries` quote below is verbatim from
 those artifact logs.
 
-## The three patterns at a glance
+### The three patterns at a glance
 
 | Pattern | Lives in | Filters | When you reach for it |
 |---|---|---|---|
@@ -50,7 +104,7 @@ every reference to the gated target in another target's `dependencies:`
 array must *also* be gated, or the manifest itself fails to evaluate
 (experiments below).
 
-## Pattern 1 — `.when(platforms:)` on a dep edge
+### Pattern 1 — `.when(platforms:)` on a dep edge
 
 This is the lightest guard. The dependency itself compiles everywhere;
 the guard just controls *linking*. swift-crypto is the canonical example
@@ -61,7 +115,7 @@ in this repo:
          condition: .when(platforms: [.linux]))
 ```
 
-### Experiment — strip the `.when` clause
+#### Experiment — strip the `.when` clause
 
 The mutation makes the Linux-only condition unconditional. On Linux
 nothing changes (Linux was going to link Crypto either way). The result:
@@ -77,7 +131,7 @@ be resolving, compiling and linking a swift-crypto module that nothing
 imports. Pattern 1 is a *correctness-by-omission* knob, not a
 correctness-of-link knob.
 
-## Pattern 2 — `#if os(...)` around a target declaration
+### Pattern 2 — `#if os(...)` around a target declaration
 
 The heavier guard. Used when the target's source files themselves can't
 compile on the other platform — e.g. `Sources/AppKitGreeter/` imports
@@ -103,7 +157,7 @@ let platformExclusiveCoreDeps: [Target.Dependency] = []
 #endif
 ```
 
-### Experiment EXP-D — declare both targets unconditionally
+#### Experiment EXP-D — declare both targets unconditionally
 
 Mutation: drop the `#if os` wrapping entirely so both `AppKitGreeter`
 and `GlibcGreeter` are declared on every platform.
@@ -129,7 +183,7 @@ only controls linking; the target's source still gets compiled if the
 target is declared. The only way to prevent the compile attempt is to
 hide the target from the manifest entirely.
 
-### Experiment EXP-E — keep the target gated, but forget to gate the dep edge
+#### Experiment EXP-E — keep the target gated, but forget to gate the dep edge
 
 A subtle, frequently-encountered failure mode. The target declaration
 is correctly gated by `#if os(macOS)`, but somewhere downstream a
@@ -173,7 +227,7 @@ error: 'swiftlinuxdemo': product 'AppKitGreeter' required by package 'swiftlinux
    binding the deps inside the same `#if` block as the target
    declaration makes it impossible to forget one without the other.
 
-## Pattern 3 — source-level `#if os(...)` / `#if canImport(...)`
+### Pattern 3 — source-level `#if os(...)` / `#if canImport(...)`
 
 The finest-grained guard. Lives inside a `.swift` file, not in
 `Package.swift`. Controls which import statements (and which arbitrary
@@ -211,7 +265,7 @@ thinking about:
   `#if os(X)` when you're guarding code that doesn't import anything
   (e.g. platform-specific syscalls accessed through `Foundation`).
 
-### Experiment — strip `#if canImport(CryptoKit)`, force `import CryptoKit`
+#### Experiment — strip `#if canImport(CryptoKit)`, force `import CryptoKit`
 
 Mutation: remove the canImport guard in `Hasher.swift`; replace its
 contents with an unconditional `import CryptoKit`.
@@ -233,7 +287,7 @@ error: emit-module command failed with exit code 1
 does not exist on Linux. The `#if canImport(CryptoKit)` guard exists
 exactly because of this.
 
-### Experiment — strip the guard, force `import Crypto`, *and* remove the dep
+#### Experiment — strip the guard, force `import Crypto`, *and* remove the dep
 
 Mutation: source unconditionally imports `Crypto`, AND the
 `SwiftLinuxDemoCore` target's `dependencies:` array no longer lists the
@@ -259,7 +313,7 @@ single most reliable signal that the *package* declares a dependency
 but no *target* consumes it. If you see that warning on a build that
 shouldn't have it, you've broken an edge somewhere.
 
-### Experiment EXP-F — strip source-level `#if os(...)` for AppKitGreeter
+#### Experiment EXP-F — strip source-level `#if os(...)` for AppKitGreeter
 
 Mutation: replace the conditional import in `PlatformReport.swift`
 with an unconditional `import AppKitGreeter`, while leaving the
@@ -288,7 +342,7 @@ either. EXP-D showed that an un-gated *target* fails to compile on the
 wrong platform even if no one imports it — `swift build` builds all
 declared targets regardless of whether anything depends on them.
 
-## Putting it all together
+### Putting it all together
 
 The three patterns answer three different questions:
 
@@ -306,7 +360,8 @@ follow which guard solves which problem.
 
 ## See Also
 
-- <doc:02-Build>
+- <doc:03-GitHub-Action-Pipeline>
+- <doc:00-Concepts>
 - [SE-0273][se-0273] — the proposal that introduced
   `.when(platforms:)` on target dependencies.
 - [TargetDependencyCondition reference][when-platforms] — the

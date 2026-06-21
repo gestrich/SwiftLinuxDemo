@@ -5,8 +5,9 @@ hardware — and how the Swift ecosystem adapts at each step.
 
 ![The system stack as three zones — user space, kernel space, and hardware — with the system call ABI and the instruction set drawn as the interface boundaries between them.](concepts-stack.svg)
 
-The how-to chapters — <doc:01-Conditional-Compilation>, <doc:02-Build>,
-<doc:06-Cross-Compile> — apply these ideas in practice.
+The how-to chapters — <doc:02-Your-First-Linux-Build>,
+<doc:03-GitHub-Action-Pipeline>, <doc:06-Cross-Compile> — apply these
+ideas in practice.
 
 ## User space
 
@@ -38,7 +39,7 @@ import Glibc
 `#if os(...)` switches on the OS, `#if canImport(...)` on whether a
 module exists, and `.when(platforms:)` decides whether a package
 dependency is even linked. These guards are the subject of
-<doc:01-Conditional-Compilation>.
+<doc:02-Your-First-Linux-Build>.
 
 ![One Swift source file with #if guards compiling into a macOS build (AppKit, libswiftDarwin) and a Linux build (Glibc, libswiftGlibc) — one codebase, the compiler picks the branch per target.](conditional-compilation.svg)
 
