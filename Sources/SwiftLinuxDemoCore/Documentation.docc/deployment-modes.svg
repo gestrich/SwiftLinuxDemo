@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="310" viewBox="0 0 840 310" font-family="-apple-system, Helvetica, Arial, sans-serif" role="img" aria-label="Three deployment modes showing what is baked into the binary, shipped beside it, or provided by the target machine">
+  <rect x="6" y="6" width="828" height="298" rx="16" fill="#0d1117" stroke="#30363d" stroke-width="1.5"/>
+
+  <!-- ===== Column 1: fully static (musl) ===== -->
+  <text x="165" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="#3fb950">Fully static (musl)</text>
+  <text x="165" y="62" text-anchor="middle" font-size="10" fill="#8b949e">the binary</text>
+  <rect x="55" y="70" width="220" height="120" rx="10" fill="none" stroke="#8b949e" stroke-width="1.5"/>
+  <rect x="60" y="78" width="210" height="32" rx="6" fill="#f05138"/>
+  <text x="165" y="99" text-anchor="middle" font-size="12" fill="#ffffff">your code</text>
+  <rect x="60" y="114" width="210" height="32" rx="6" fill="#d97706"/>
+  <text x="165" y="135" text-anchor="middle" font-size="12" fill="#ffffff">Swift libs + Foundation</text>
+  <rect x="60" y="150" width="210" height="32" rx="6" fill="#8957e5"/>
+  <text x="165" y="171" text-anchor="middle" font-size="12" fill="#ffffff">C library (musl)</text>
+  <text x="165" y="244" text-anchor="middle" font-size="12" font-weight="600" fill="#3fb950">✓ self-contained — needs nothing</text>
+
+  <!-- ===== Column 2: static stdlib (glibc) ===== -->
+  <text x="425" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="#d97706">Static stdlib (glibc)</text>
+  <text x="425" y="62" text-anchor="middle" font-size="10" fill="#8b949e">the binary</text>
+  <rect x="315" y="70" width="220" height="84" rx="10" fill="none" stroke="#8b949e" stroke-width="1.5"/>
+  <rect x="320" y="78" width="210" height="32" rx="6" fill="#f05138"/>
+  <text x="425" y="99" text-anchor="middle" font-size="12" fill="#ffffff">your code</text>
+  <rect x="320" y="114" width="210" height="32" rx="6" fill="#d97706"/>
+  <text x="425" y="135" text-anchor="middle" font-size="12" fill="#ffffff">Swift libs + Foundation</text>
+  <rect x="315" y="166" width="220" height="32" rx="6" fill="none" stroke="#8b949e" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="425" y="187" text-anchor="middle" font-size="11.5" font-style="italic" fill="#8b949e">C library — glibc (from target)</text>
+  <text x="425" y="244" text-anchor="middle" font-size="12" font-weight="600" fill="#c9d1d9">needs glibc on target</text>
+
+  <!-- ===== Column 3: bundled-runtime (glibc) ===== -->
+  <text x="685" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="#58a6ff">Bundled-runtime (glibc)</text>
+  <text x="685" y="62" text-anchor="middle" font-size="10" fill="#8b949e">the binary</text>
+  <rect x="575" y="70" width="220" height="48" rx="10" fill="none" stroke="#8b949e" stroke-width="1.5"/>
+  <rect x="580" y="78" width="210" height="32" rx="6" fill="#f05138"/>
+  <text x="685" y="99" text-anchor="middle" font-size="12" fill="#ffffff">your code</text>
+  <rect x="580" y="130" width="210" height="40" rx="6" fill="#d97706"/>
+  <text x="685" y="148" text-anchor="middle" font-size="11.5" fill="#ffffff">Swift libs + Foundation</text>
+  <text x="685" y="163" text-anchor="middle" font-size="10" fill="#ffffff" fill-opacity="0.8">.so files, shipped beside</text>
+  <rect x="575" y="182" width="220" height="32" rx="6" fill="none" stroke="#8b949e" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="685" y="203" text-anchor="middle" font-size="11.5" font-style="italic" fill="#8b949e">C library — glibc (from target)</text>
+  <text x="685" y="244" text-anchor="middle" font-size="12" font-weight="600" fill="#c9d1d9">ship binary + .so's; needs glibc</text>
+
+  <text x="420" y="284" text-anchor="middle" font-size="12" font-style="italic" fill="#8b949e">Solid = baked into or shipped with the binary · dashed = provided by the target machine.</text>
+</svg>

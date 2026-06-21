@@ -40,6 +40,8 @@ module exists, and `.when(platforms:)` decides whether a package
 dependency is even linked. These guards are the subject of
 <doc:01-Conditional-Compilation>.
 
+![One Swift source file with #if guards compiling into a macOS build (AppKit, libswiftDarwin) and a Linux build (Glibc, libswiftGlibc) — one codebase, the compiler picks the branch per target.](conditional-compilation.svg)
+
 ### Foundation
 
 **Foundation** is the optional, higher-level library — `Date`, `URL`,
@@ -170,6 +172,8 @@ a Pi. That's the subject of <doc:06-Cross-Compile>.
 > architecture must normally match (though it can add QEMU emulation to
 > run a foreign one).
 
+![Side-by-side: cross-compilation builds an aarch64 binary on a Mac that runs natively on the Pi with no translation; emulation runs a binary by translating its instructions at run time through QEMU, which is slower.](cross-vs-emulation.svg)
+
 ## Hardware
 
 The physical CPU, memory, and devices the instruction set describes — a
@@ -210,6 +214,8 @@ That's exactly why the cross-compile chapter has three deployment modes
   dynamic (from the target).
 - **Bundled-runtime (glibc)** — ship the Swift `.so`s beside the binary,
   use the target's libc.
+
+![Three deployment modes: fully static (musl) bakes your code, the Swift libraries, and the C library into one self-contained binary; static stdlib (glibc) bakes in your code and the Swift libraries while glibc comes from the target; bundled-runtime ships your code as the binary with the Swift .so files alongside and glibc from the target.](deployment-modes.svg)
 
 ## The stack vs. the axes of change
 
