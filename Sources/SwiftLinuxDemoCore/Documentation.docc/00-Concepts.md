@@ -127,6 +127,14 @@ C library and Foundation do it for you. The same Swift line works on both
 systems because the components above route to the right syscall for the
 target.
 
+**It's a stable contract — on Linux.** Linux keeps its system-call
+numbers and semantics stable across kernel versions (the "don't break
+userspace" rule), so a binary built years ago still runs on a newer
+kernel, and on *any* distribution, since they all share that interface.
+Darwin makes no such promise — its syscall table isn't a public ABI —
+which is why Apple platforms have no fully-static-binary story while Linux
+does.
+
 ## Kernel space
 
 ### The kernel
@@ -185,7 +193,10 @@ address it directly.
 
 A natural question once you see the stack: of all these pieces, which can
 you put *in* (or *beside*) your executable, and which must already exist
-on the machine you run on?
+on the machine you run on? The ones that must already be there are the
+binary's **runtime dependencies** — and they're exactly what makes "build
+here, run there" fragile, since their versions and layout differ between
+machines.
 
 The dividing line is the **user/kernel boundary** — the green bracket in
 the diagram. Everything in user space can travel with your app;
@@ -216,6 +227,15 @@ That's exactly why the cross-compile chapter has three deployment modes
   use the target's libc.
 
 ![Three deployment modes: fully static (musl) bakes your code, the Swift libraries, and the C library into one self-contained binary; static stdlib (glibc) bakes in your code and the Swift libraries while glibc comes from the target; bundled-runtime ships your code as the binary with the Swift .so files alongside and glibc from the target.](deployment-modes.svg)
+
+**The fully-static payoff.** When even the C library is baked in (the
+musl mode), the binary's *only* remaining runtime dependency is the one
+thing it can never include: the kernel. It reaches that solely through the
+**system-call interface** — and because that interface is the same stable
+contract on every Linux distribution, the binary runs on all of them,
+from a glibc system to musl-only Alpine to a `FROM scratch` container with
+no libc at all. The price is that there's no dynamic loader inside the
+binary, so `dlopen()` and runtime plugin loading don't work.
 
 ## The stack vs. the axes of change
 

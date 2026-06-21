@@ -25,6 +25,20 @@ Only the last — **Bundled-runtime** — works reliably today:
 
 This chapter uses the **Bundled-runtime** approach.
 
+> **About the fully-static (musl) option.** It's the official
+> [Static Linux SDK](https://www.swift.org/documentation/articles/static-linux-getting-started.html),
+> and worth understanding even though it's blocked on this Pi by the
+> SIGILL bug above. It uses a "bring your own dependencies" model: the
+> target's system libraries can't be used, the SDK bundles a few common
+> ones (`libxml2`, `zlib`, `curl`), and any other C/C++ dependency must be
+> supplied as a static `.a` with a module map. Two consequences worth
+> knowing: code that does `import Glibc` has to add
+> `#elseif canImport(Musl)` (the musl C-library module), and because
+> nothing is dynamically linked, `dlopen()` and plugin loading don't work.
+> Note the bundled `curl` is why the `nghttp2` link failure in the
+> Static-stdlib row is specific to the glibc generator's sysroot, not to
+> this musl SDK.
+
 ### What the working approach actually is
 
 It is **not** a static build — it is the opposite end of the spectrum
